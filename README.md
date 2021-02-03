@@ -1,4 +1,4 @@
-# Scalable and flexible Probabilistic PCA for large-scale genetic variation data
+# proEigenGWAS for biobank-scale genetic data
 
 We propose a scalable and exact algorithm to compute principal components on genetic variation data. Our method is based on a previously proposed latent variable model for probabilistic PCA, PPCA (Roweis 1999, Tipping and Bishop 1999), of which PCA arises in the small variance limit. The latent variable model formulation leads to an iterative EM algorithm for computing the principal components with time complexity O(KMN) to compute K principal components on N individuals and M SNPs per iteration.
 
@@ -98,7 +98,7 @@ You can run the code using the command:
 The equivalent command to issue for running the same code from the examples directory is:
 
 ```
-../build/propca -g example.geno -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm -txt
+../build/propca -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm
 ```
 
 ProPCA wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.

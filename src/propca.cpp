@@ -9,6 +9,7 @@
 #include <Eigen/LU>
 #include <Eigen/SVD>
 #include <Eigen/QR>
+#include <math.h>
 #include "time.h"
 #include <thread>
 #include <chrono>
@@ -70,6 +71,10 @@ MatrixXdr v; //(p,k)
 MatrixXdr means; //(p,1)
 MatrixXdr stds; //(p,1)
 
+//projection matrix for EigenGWAS
+//Size = sample_size, k--the number of eigenvector calculated
+MatrixXdr eveP;
+
 options command_line_opts;
 
 bool debug = false;
@@ -82,8 +87,7 @@ bool missing=false;
 bool fast_mode = true;
 bool text_version = false;
 int nthreads = 1;
-
-
+bool scan = false;
 
 
 void multiply_y_pre_fast_thread (int begin, int end, MatrixXdr &op, int Ncol_op, double *yint_m, double **y_m, double *partialsums, MatrixXdr &res){
@@ -624,6 +628,7 @@ void print_vals(){
 		eval_file << std::setprecision(15)<< (b_svd.singularValues())(kk)*(b_svd.singularValues())(kk)/g.Nsnp<<endl;
 	eval_file.close();
 
+	eveP = v_l.leftCols(k_orig);
 	ofstream proj_file;
 	proj_file.open((string(command_line_opts.OUTPUT_PATH) + string("projections.txt")).c_str());
 	proj_file << std::setprecision(15)<< v_k<<endl;
@@ -649,6 +654,40 @@ void print_vals(){
 		x_file<<std::setprecision(15)<<x_k.transpose()<<endl;
 		x_file.close();
 	}
+}
+
+void EigenGWAS() {
+
+	cout <<"---------------EigenGWAS scan-------------"<<endl;
+	cout <<"SNP size: "<<geno_matrix.rows()<<endl;
+	cout <<"Sample sizs: "<<geno_matrix.cols()<<endl;
+	cout <<eveP.cols()<<" eigen vectors"<<endl;
+
+	//calculate beta; possibly faster using mailman
+	MatrixXdr EgBeta = geno_matrix*eveP/geno_matrix.cols();
+
+	MatrixXdr EgVarY(1, eveP.cols());
+	for(int i = 0; i < eveP.cols(); i++) { // eigenvector k
+		EgVarY(0,i) = 0;
+		double mY = 0;
+		for(int j = 0; j < eveP.rows(); j++) { // sample size
+			EgVarY(0,i) += pow(eveP(j,i),2);
+			mY += eveP(j,i);
+		}
+		EgVarY(0,i) = (EgVarY(0,i) - mY*mY/eveP.rows())/eveP.rows(); 
+	}
+
+	for(int i = 0; i < EgBeta.cols(); i++) {
+		ofstream e_file;
+		e_file.open((string(command_line_opts.OUTPUT_PATH)+string("eg."+std::to_string(i+1)+".txt")).c_str());
+		for(int j = 0; j <EgBeta.rows(); j++) {
+			double egB = EgBeta(j,i);
+			double seB = sqrt((EgVarY(0,i) - pow(EgBeta(j,i),2))/(eveP.rows()-1));
+			e_file<<g.get_bim_info(j)<<"\t"<<std::setprecision(8)<<egB<<"\t"<<seB<<"\t"<<egB/seB<<endl;
+		}
+		e_file.close();
+	}
+//		MatrixXdr EigenSe = 
 }
 
 int main(int argc, char const *argv[]){
@@ -677,6 +716,7 @@ int main(int argc, char const *argv[]){
 	var_normalize = command_line_opts.var_normalize;
 	accelerated_em = command_line_opts.accelerated_em;
 	nthreads = command_line_opts.nthreads;
+	scan = command_line_opts.scan;
 	
 	if(text_version){
 		if(fast_mode)
@@ -885,6 +925,42 @@ int main(int argc, char const *argv[]){
 	std::chrono::duration<double> wctduration = std::chrono::system_clock::now() - start;
 	cout <<"Wall clock time = " <<  wctduration.count() << endl;
 
+
+	if (scan) {
+		EigenGWAS();
+/*		
+		cout <<"EigenGWAS scan: "<<endl;
+		cout <<"SNP size:"<<geno_matrix.rows()<<endl;
+		cout <<"Sample sizs:"<<geno_matrix.cols()<<endl;
+		cout <<eveP(0,0)<<" "<<eveP(0,1)<<" "<<endl;
+
+		MatrixXdr EgVarY(1, eveP.cols());
+		for(int i = 0; i < eveP.cols(); i++) { // eigenvector k
+			EgVarY(0,i)=0;
+			for(int j = 0; j < eveP.rows(); j++) { // sample size
+				EgVarY(0,i) += pow(eveP(j,i),2);
+			}
+			EgVarY(0,i) /= eveP.rows();
+		}
+
+		MatrixXdr EgBeta = geno_matrix*eveP/geno_matrix.cols();
+		MatrixXdr EgSe(EgBeta.rows(), EgBeta.cols());
+		for(int i = 0; i < EgBeta.cols(); i++) {
+			ofstream e_file;
+			e_file.open((string(command_line_opts.OUTPUT_PATH)+string("eg."+std::to_string(i+1)+".txt")).c_str());
+			for(int j = 0; j <EgBeta.rows(); j++) {
+				double egB = EgBeta(j,i);
+				EgSe(j,i) = sqrt((EgVarY(0,i) - pow(EgBeta(j,i),2))/(eveP.rows()-1));
+				e_file<<std::setprecision(8)<<egB<<"\t"<<EgSe(j,i)<<"\t"<<egB/EgSe(j,i)<<endl;
+			}
+			e_file.close();
+		}
+//		MatrixXdr EigenSe = 
+		cout <<EgBeta.rows()<<" "<<EgBeta.cols()<<" "<<endl;
+		cout <<EgBeta.row(0)<<endl;
+		cout <<EgSe.row(0)<<endl;
+		*/
+	}
 
 
 	delete[] sum_op;

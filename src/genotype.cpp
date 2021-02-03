@@ -233,7 +233,32 @@ inline void printvectornl(vector<T> &t, string delim = " "){
     printvector (t, delim, true);
 }
 
+void genotype::read_bim(std::string filename) {
 
+	ifstream inp(filename);
+	if (!inp.is_open()){
+		cerr << "Error reading file "<< filename <<endl;
+		exit(1);
+	}
+	string line;
+	int j = 0 ;
+	int linenum = 0 ;
+	while(std::getline (inp, line)){
+		char c = line[0];
+		if (c=='#')
+			continue;
+		bimInfo.push_back(line);
+		linenum ++;
+	}
+	inp.close();
+}
+
+string genotype::get_bim_info(int snpIdx) {
+	if (snpIdx > bimInfo.size()) {
+		cerr << "Error getting snp information:" << snpIdx << "out of range (" << bimInfo.size() <<")"<<endl;
+	}
+	return bimInfo[snpIdx];
+}
 
 int genotype::countlines(string filename){
 	ifstream inp(filename.c_str());
@@ -440,7 +465,6 @@ void genotype::read_bed_naive (string filename, bool allow_missing)  {
 	delete[] gtype;
 }
 
-
 void genotype::read_bed (string filename, bool allow_missing, bool mailman_mode )  {
 	if(mailman_mode){
 		read_bed_mailman(filename,allow_missing);
@@ -455,9 +479,12 @@ void genotype::read_plink(std::string filenameprefix, bool allow_missing,bool ma
 	std::stringstream f1;  
 	f1 << filenameprefix << ".bim";
 	Nsnp = countlines(f1.str());
+	read_bim(f1.str());
+
 	std::stringstream f2;  
 	f2 << filenameprefix << ".fam";
 	Nindv = countlines(f2.str());
+
 	std::stringstream f3;  
 	f3 << filenameprefix << ".bed";
 	read_bed (f3.str(), allow_missing,mailman_mode);

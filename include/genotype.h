@@ -13,7 +13,8 @@ class genotype {
 	std::vector< std::vector <bool> > lsb;
 	std::vector<int> columnsum;
 	std::vector<double> columnmeans;
-	
+	std::vector<std::string> bimInfo;
+
 	public:	
 
 		unsigned char mask;
@@ -49,6 +50,7 @@ class genotype {
 		void read_bed_naive (std::string filename ,bool allow_missing)  ;
 
 		int countlines(std::string filename);
+		void read_bim(std::string filename);
 		void set_metadata () ;
 
 
@@ -60,6 +62,7 @@ class genotype {
 
 		void generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix,bool var_normalize);
 
+		std::string get_bim_info(int snpIdx);
 
 };
 

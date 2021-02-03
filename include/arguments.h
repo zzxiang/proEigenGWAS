@@ -29,6 +29,7 @@ struct options{
 	int nthreads;
 	int seed;
 	bool given_seed;
+	bool scan;
 };
 
 /***
@@ -211,6 +212,7 @@ void parse_args(int argc, char const *argv[]){
 	command_line_opts.nthreads  = 1;
 	command_line_opts.seed  = -1;
 	command_line_opts.given_seed  = false;
+	command_line_opts.scan = false;
 	
 
 	if(argc<3){
@@ -239,7 +241,8 @@ void parse_args(int argc, char const *argv[]){
 		command_line_opts.text_version = cfg.getValueOfKey<bool>("text_version",false);							
 		command_line_opts.nthreads = cfg.getValueOfKey<int>("nthreads", 1);							
 		command_line_opts.seed = cfg.getValueOfKey<int>("seed", -1);							
-		command_line_opts.given_seed = command_line_opts.seed >= 0 ? true: false;							
+		command_line_opts.given_seed = command_line_opts.seed >= 0 ? true: false;
+		command_line_opts.scan = cfg.getValueOfKey<bool>("scan",true);							
 	}
 	else{
 		bool got_max_iter = false;
@@ -298,6 +301,8 @@ void parse_args(int argc, char const *argv[]){
 					command_line_opts.fast_mode=false;
 				else if(strcmp(argv[i],"-txt")==0)
 					command_line_opts.text_version=true;
+				else if(strcmp(argv[i], "-scan")==0)
+					command_line_opts.scan=true;
 				
 				else{
 					cout<<"Not Enough or Invalid arguments"<<endl;
@@ -319,6 +324,8 @@ void parse_args(int argc, char const *argv[]){
 					command_line_opts.missing=true;
 			else if(strcmp(argv[i],"-txt")==0)
 					command_line_opts.text_version=true;
+			else if(strcmp(argv[i], "-scan")==0)
+					command_line_opts.scan=true;
 		}
 		if(!got_max_iter)
 			command_line_opts.max_iterations = 2+command_line_opts.num_of_evec;

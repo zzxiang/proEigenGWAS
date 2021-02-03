@@ -11,6 +11,7 @@ These instructions will get you a copy of the project up and running on your loc
 Please cite our manuscript if you use our software.
 
 ```
+Chen G-B, Lee, SH, Zhu, Z-X, Benyamin, B, Robinson, MR (2016) EigenGWAS: finding loci under selection through genome-wide association studies of eigenvectors in structured populations. Heredity 117:51-61
 Agrawal A, Chiu AM, Le M, Halperin E, Sankararaman S (2020) Scalable probabilistic PCA for large-scale genetic variation data. PLOS Genetics 16(5): e1008773. https://doi.org/10.1371/journal.pgen.1008773
 ```
 
@@ -84,7 +85,7 @@ The values in the brackets are the command line flags for running the code witho
 * memory_efficient (-mem) : The flag states whether to use a memory effecient version for the EM algorithm or not. The memory efficient version is a little slow than the not efficient version (default: false)
 * nthreads (-nt): Number of threads to use (default: 1)
 * seed (-seed): Seed to use (default: system time)
-
+* scan (-scan): Scan EigenGWAS
 ```
 
 An example parameter file is provided in the examples directory.
@@ -98,28 +99,14 @@ You can run the code using the command:
 The equivalent command to issue for running the same code from the examples directory is:
 
 ```
-../build/propca -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm
+../build/propca -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm -scan
 ```
 
-ProPCA wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.
+proEigenGWAS wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.
 
 ### Genotype File
 
-There are two ways to provide input:
-
-#### First:
-
-The genotype file is modified EigenStrat format. 
-
-The first line of the genotype file contains two space separated integers denoting the number of SNPs and the number of Individuals respectively.
-
-Each line after represent each row of the genotype matrix where each row corresponds to a SNP and each entry is either 0,1 or 2 representing the number of allele in the corresponding individual at that SNP. If the entry is missing it is represented as 9.
-
-Look at the example.geno file in the examples directory to get a better understanding. 
-
-#### Second:
-
-The inout can be in the plink binary format, as descibed at [Plink BED](https://www.cog-genomics.org/plink/1.9/input#bed)
+The input can be in the plink binary format, as descibed at [Plink BED](https://www.cog-genomics.org/plink/1.9/input#bed)
 
 Make sure to set the text_version to false in the parameter file, or don't use the -txt command line flag, when running. 
 
@@ -148,8 +135,3 @@ See also the list of [contributors](https://github.com/aman71197/ProPCA/graphs/c
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
-
-Project completed under the guidance of
-
-* **Sriram Sankararaman** - [http://web.cs.ucla.edu/~sriram/](http://web.cs.ucla.edu/~sriram/)
-* **Eran Halperin** - [http://www1.icsi.berkeley.edu/~heran/](http://www1.icsi.berkeley.edu/~heran/)

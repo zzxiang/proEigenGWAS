@@ -1,7 +1,5 @@
 # proEigenGWAS for biobank-scale genetic data
 
-We propose a scalable and exact algorithm to compute principal components on genetic variation data. Our method is based on a previously proposed latent variable model for probabilistic PCA, PPCA (Roweis 1999, Tipping and Bishop 1999), of which PCA arises in the small variance limit. The latent variable model formulation leads to an iterative EM algorithm for computing the principal components with time complexity O(KMN) to compute K principal components on N individuals and M SNPs per iteration.
-
 ## Getting Started
 
 These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
@@ -27,17 +25,17 @@ make
 
 ### Installing
 
-Installing ProPCA is fairly simple. Just issue the following commands on a linux machine
+Installing proEG is fairly simple. Just issue the following commands on a linux machine
 
 ```
-git clone https://github.com/sriramlab/ProPCA.git
-cd ProPCA
+git clone https://github.com/gc5k/proEigenGWAS.git
+cd proEigenGWAS
 mkdir build
 cd build
 ```
 By default, the release version is built, if you wish to build the debug version, build with cmake flag `-D DEBUG=1` as shown below.
 
-ProPCA supports, [SSE](https://en.wikipedia.org/wiki/Streaming_SIMD_Extensions) instructions.
+proEigenGWAS supports, [SSE](https://en.wikipedia.org/wiki/Streaming_SIMD_Extensions) instructions.
 
 If your architecure is Intel and supports SSE instructions, build with the cmake flag `-D SSE_SUPPORT=1` for an faster improved version as shown below.
 
@@ -55,14 +53,13 @@ make
 ```
 
 
-
-## Documentation for ProPCA
+## Documentation for proEigenGWAS
 
 After compiling the executable propca is present in the build directory.
 Running the propca is fairly simple and can be done in two different ways
 
-* ``./propca -p <parameter_file>``
-* ``./propca <various_command_line arguments>``
+* ``./proEG -p <parameter_file>``
+* ``./proEG <various_command_line arguments>``
 
 ### Parameters
 
@@ -93,16 +90,16 @@ An example parameter file is provided in the examples directory.
 You can run the code using the command:
 
 ```
-../build/propca -p par.txt
+../build/proEG -p par.txt
 ``` 
 
 The equivalent command to issue for running the same code from the examples directory is:
 
 ```
-../build/propca -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm -scan
+../build/proEG -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm -scan
 ```
 
-proEigenGWAS wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.
+proEG wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.
 
 ### Genotype File
 

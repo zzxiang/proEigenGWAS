@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12)
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER "g++")
 
-project(ProPCA)
+project(proEigenGWAS)
 
 include_directories(include/)
 
@@ -21,4 +21,4 @@ IF (NOT DEFINED DEBUG)
 ENDIF()
 ADD_DEFINITIONS(-DDEBUG=${DEBUG})
 
-add_executable(propca src/propca.cpp src/genotype.cpp src/storage.cpp)
+add_executable(proEG src/propca.cpp src/genotype.cpp src/storage.cpp)

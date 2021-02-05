@@ -12,7 +12,7 @@ void add_to_arr(int x, int j, int beta,std::vector<unsigned> &arr){
     if(add > 32){
         arr[idx] = arr[idx] & ( ((1 << rem) - 1) << (32-rem) );
         arr[idx] = arr[idx] | (x >> (add-32));
-        arr[idx+1] = (x << (64-add)) | ( arr[idx+1] & ( (1<<64-add) - 1)   )  ;
+        arr[idx+1] = (x << (64-add)) | ( arr[idx+1] & ( (1<<(64-add)) - 1) );
     }
     else{
         unsigned mask_left,mask_right;

@@ -10,6 +10,8 @@
 #include <Eigen/SVD>
 #include <Eigen/QR>
 #include <math.h>
+#include <boost/math/distributions/students_t.hpp>
+
 #include "time.h"
 #include <thread>
 #include <chrono>
@@ -663,6 +665,13 @@ void EigenGWAS() {
 	cout <<"Sample sizs: "<<geno_matrix.cols()<<endl;
 	cout <<eveP.cols()<<" eigen vectors"<<endl;
 
+	// how to use this?
+	//	boost::math::students_t::cdf(20, 2);
+
+	using boost::math::students_t;
+	students_t Tdist(geno_matrix.cols()-1);
+	double pt2tail; 
+
 	//calculate beta; possibly faster using mailman
 	MatrixXdr EgBeta = geno_matrix*eveP/geno_matrix.cols();
 
@@ -680,10 +689,13 @@ void EigenGWAS() {
 	for(int i = 0; i < EgBeta.cols(); i++) {
 		ofstream e_file;
 		e_file.open((string(command_line_opts.OUTPUT_PATH)+string("eg."+std::to_string(i+1)+".txt")).c_str());
+		e_file<<"CHR\tSNP\tPOS\tBP\tA1\tA2\tBeta\tSE\tT-stat\tp-value"<<endl;
 		for(int j = 0; j <EgBeta.rows(); j++) {
 			double egB = EgBeta(j,i);
 			double seB = sqrt((EgVarY(0,i) - pow(EgBeta(j,i),2))/(eveP.rows()-1));
-			e_file<<g.get_bim_info(j)<<"\t"<<std::setprecision(8)<<egB<<"\t"<<seB<<"\t"<<egB/seB<<endl;
+			double t_stat = egB/seB;
+			double pt2tail = cdf(complement(Tdist, fabs(t_stat))) * 2;
+			e_file<<g.get_bim_info(j)<<"\t"<<std::setprecision(8)<<egB<<"\t"<<seB<<"\t"<<t_stat<<"\t"<<pt2tail<<endl;
 		}
 		e_file.close();
 	}
@@ -927,6 +939,7 @@ int main(int argc, char const *argv[]){
 
 
 	if (scan) {
+
 		EigenGWAS();
 /*		
 		cout <<"EigenGWAS scan: "<<endl;

@@ -83,6 +83,7 @@ The values in the brackets are the command line flags for running the code witho
 * nthreads (-nt): Number of threads to use (default: 1)
 * seed (-seed): Seed to use (default: system time)
 * scan (-scan): Scan EigenGWAS
+* inbred (-inbred): inbred
 ```
 
 An example parameter file is provided in the examples directory.
@@ -97,6 +98,7 @@ The equivalent command to issue for running the same code from the examples dire
 
 ```
 ../build/proEG -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm -scan
+../build/proEG -g Arab295Line -k 5 -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -nfm -scan -inbred
 ```
 
 proEG wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.

@@ -60,7 +60,7 @@ class genotype {
 		double get_col_std(int snpindex);		
 		void update_col_mean(int snpindex,double value);
 
-		void generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix,bool var_normalize);
+		void generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize, bool isInbred);
 
 		std::string get_bim_info(int snpIdx);
 

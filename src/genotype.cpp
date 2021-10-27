@@ -505,21 +505,22 @@ double genotype::get_col_sum(int snpindex) {
 }
 
 double genotype::get_col_std(int snpindex) {
-	double p_i = get_col_mean(snpindex);
-	if(p_i == 0 || p_i == 2)
+	double p_i = get_col_mean(snpindex) / 2;
+	if (p_i == 0 || p_i == 1)
 		return 1.0;
-	double temp = sqrt(p_i*(1-(0.5*p_i)));
+	double temp = sqrt(2 * p_i * (1 - p_i));
 	return temp;
 }
 
-void genotype::generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize){
-	for(int i=0;i<Nsnp;i++) {
-		for(int j=0;j<Nindv;j++) {
+void genotype::generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize, bool isInbred) {
+	for (int i = 0; i < Nsnp; i++) {
+		for (int j = 0; j < Nindv; j++) {
 			double m = msb[i][j];
 			double l = lsb[i][j];
-			double geno = (m*2.0+l) - get_col_mean(i);
-			if(var_normalize)
-				geno_matrix(i,j) = geno/get_col_std(i);
+			double geno = (m * 2.0 + l) - get_col_mean(i);
+			double sd = isInbred ? (sqrt(2) * get_col_std(i)):get_col_std(i);
+			if (var_normalize)
+				geno_matrix(i,j) = geno / sd;
 			else
 				geno_matrix(i,j) = geno;
 		}

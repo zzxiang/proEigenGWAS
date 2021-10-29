@@ -8,7 +8,7 @@ project(proEigenGWAS)
 include_directories(include/)
 
 #set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -lrt")
-set(CMAKE_CXX_FLAGS "-std=c++0x -O3")
+set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -pthread")
 
 
 IF (NOT DEFINED SSE_SUPPORT)

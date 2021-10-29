@@ -11,6 +11,12 @@
 /examples/example_projections.txt
 !CMakeLists.txt
 !/examples
+!/examples/*.bed
+!/examples/*.bim
+!/examples/*.fam
+!examples/Arab295Line_evals.txt
+!examples/Arab295Line_evecs.txt
+!examples/Arab295Line_projections.txt
 !/.git
 !/.gitignore
 !/include/Eigen/
@@ -18,4 +24,3 @@
 !README.md
 !/src
 !/misc
-

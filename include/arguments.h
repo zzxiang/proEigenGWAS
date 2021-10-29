@@ -31,6 +31,9 @@ struct options{
 	bool given_seed;
 	bool scan;
 	bool inbred;
+	bool rhe;
+	int rhe_it;
+	bool propc;
 };
 
 /***
@@ -197,7 +200,7 @@ void parse_args(int argc, char const *argv[]) {
 	
 	// Setting Default Values
 	command_line_opts.num_of_evec = 5;
-	command_line_opts.max_iterations = 2+command_line_opts.num_of_evec;
+	command_line_opts.max_iterations = 2 + command_line_opts.num_of_evec;
 	command_line_opts.getaccuracy = false;
 	command_line_opts.debugmode = false;
 	command_line_opts.OUTPUT_PATH = "fastppca_";
@@ -215,19 +218,22 @@ void parse_args(int argc, char const *argv[]) {
 	command_line_opts.given_seed  = false;
 	command_line_opts.scan = false;
 	command_line_opts.inbred = false;
+	command_line_opts.rhe = false;
+	command_line_opts.rhe_it = 10;
+	command_line_opts.propc = false;
 
 	if (argc < 3) {
 		cout<<"Correct Usage is "<<argv[0]<<" -p <parameter file>"<<endl;
 		exit(-1);
 	}
 
-	if (strcmp(argv[1],"-p") == 0) {
+	if (strcmp(argv[1], "-p") == 0) {
 
 		std::string cfg_filename = std::string(argv[2]);
 		ConfigFile cfg(cfg_filename);
 		got_genotype_file = cfg.keyExists("genotype");
 		command_line_opts.num_of_evec = cfg.getValueOfKey<int>("num_evec", 5);
-		command_line_opts.max_iterations = cfg.getValueOfKey<int>("max_iterations", 2+command_line_opts.num_of_evec);
+		command_line_opts.max_iterations = cfg.getValueOfKey<int>("max_iterations", 2 + command_line_opts.num_of_evec);
 		command_line_opts.getaccuracy = cfg.getValueOfKey<bool>("accuracy", false);
 		command_line_opts.debugmode = cfg.getValueOfKey<bool>("debug", false);
 		command_line_opts.l = cfg.getValueOfKey<int>("l", command_line_opts.num_of_evec);
@@ -236,14 +242,18 @@ void parse_args(int argc, char const *argv[]) {
 		command_line_opts.convergence_limit = cfg.getValueOfKey<double>("convergence_limit", -1.0);
 		command_line_opts.var_normalize = cfg.getValueOfKey<bool>("var_normalize", false);
 		command_line_opts.accelerated_em = cfg.getValueOfKey<int>("accelerated_em", 0);
-		command_line_opts.memory_efficient = cfg.getValueOfKey<bool>("memory_efficient", false);	
+		command_line_opts.memory_efficient = cfg.getValueOfKey<bool>("memory_efficient", false);
 		command_line_opts.fast_mode = cfg.getValueOfKey<bool>("fast_mode", true);
-		command_line_opts.missing = cfg.getValueOfKey<bool>("missing", false);	
-		command_line_opts.text_version = cfg.getValueOfKey<bool>("text_version", false);							
-		command_line_opts.nthreads = cfg.getValueOfKey<int>("nthreads", 1);					
-		command_line_opts.seed = cfg.getValueOfKey<int>("seed", -1);					
-		command_line_opts.given_seed = command_line_opts.seed >= 0 ? true: false;
-		command_line_opts.scan = cfg.getValueOfKey<bool>("scan",true);
+		command_line_opts.missing = cfg.getValueOfKey<bool>("missing", false);
+		command_line_opts.text_version = cfg.getValueOfKey<bool>("text_version", false);				
+		command_line_opts.nthreads = cfg.getValueOfKey<int>("nthreads", 1);	
+		command_line_opts.seed = cfg.getValueOfKey<int>("seed", -1);			
+		command_line_opts.given_seed = command_line_opts.seed >= 0 ? true : false;
+		command_line_opts.scan = cfg.getValueOfKey<bool>("scan", false);
+		command_line_opts.inbred = cfg.getValueOfKey<bool>("inbred", false);
+		command_line_opts.rhe = cfg.getValueOfKey<bool>("rhe", false);
+		command_line_opts.rhe_it = cfg.getValueOfKey<bool>("rhe-it", 10);
+		command_line_opts.propc = cfg.getValueOfKey<bool>("propc", false);
 	}
 	else {
 		bool got_max_iter = false;
@@ -251,7 +261,7 @@ void parse_args(int argc, char const *argv[]) {
 			if (i + 1 != argc) {
 				if (strcmp(argv[i], "-g") == 0) {
 					command_line_opts.GENOTYPE_FILE_PATH = string(argv[i+1]);
-					got_genotype_file=true;
+					got_genotype_file = true;
 					i++;
 				}
 				else if (strcmp(argv[i], "-o") == 0) {
@@ -273,7 +283,7 @@ void parse_args(int argc, char const *argv[]) {
 				}
 				else if (strcmp(argv[i], "-seed") == 0) {
 					command_line_opts.seed = atoi(argv[i+1]);
-					command_line_opts.given_seed = command_line_opts.seed >= 0 ? true: false;							
+					command_line_opts.given_seed = command_line_opts.seed >= 0 ? true : false;							
 					i++;
 				}
 				else if (strcmp(argv[i], "-l") == 0) {
@@ -286,6 +296,10 @@ void parse_args(int argc, char const *argv[]) {
 				}
 				else if (strcmp(argv[i], "-aem") == 0) {
 					command_line_opts.accelerated_em = atof(argv[i+1]);
+					i++;
+				}
+				else if (strcmp(argv[i], "-rhe-it") == 0) {
+					command_line_opts.rhe_it = atof(argv[i+1]);
 					i++;
 				}
 				else if (strcmp(argv[i], "-v") == 0)
@@ -304,8 +318,12 @@ void parse_args(int argc, char const *argv[]) {
 					command_line_opts.text_version = true;
 				else if (strcmp(argv[i], "-scan") == 0)
 					command_line_opts.scan = true;
-				else if (strcmp(argv[i], "-inbred") == 0) 
+				else if (strcmp(argv[i], "-inbred") == 0)
 					command_line_opts.inbred = true;
+				else if (strcmp(argv[i], "-rhe") == 0)
+					command_line_opts.rhe = true;
+				else if (strcmp(argv[i], "-propc") == 0)
+					command_line_opts.propc = true;
 				else {
 					cout << "Not Enough or Invalid arguments" << endl;
 					cout << "Correct Usage is " << argv[0] << " -g <genotype file> -k <num_of_evec> -m <max_iterations> -v (for debugmode) -a (for getting accuracy)" << endl;
@@ -330,8 +348,12 @@ void parse_args(int argc, char const *argv[]) {
 					command_line_opts.scan = true;
 			else if (strcmp(argv[i], "-inbred") == 0)
 					command_line_opts.inbred = true;
+			else if (strcmp(argv[i], "-rhe") == 0)
+					command_line_opts.rhe = true;
+			else if (strcmp(argv[i], "-propc") == 0)
+					command_line_opts.propc = true;
 		}
-		if(!got_max_iter)
+		if (!got_max_iter)
 			command_line_opts.max_iterations = 2 + command_line_opts.num_of_evec;
 	}
 

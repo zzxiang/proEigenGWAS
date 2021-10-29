@@ -91,6 +91,9 @@ bool text_version = false;
 int nthreads = 1;
 bool scan = false;
 bool inbred = false;
+bool rhe = false;
+int rhe_it = 10;
+bool propc = false;
 
 
 void multiply_y_pre_fast_thread(int begin, int end, MatrixXdr &op, int Ncol_op, double *yint_m, double **y_m, double *partialsums, MatrixXdr &res) {
@@ -660,7 +663,7 @@ void EigenGWAS() {
 
 	cout<<"---------------EigenGWAS scan-------------"<<endl;
 	cout<<"SNP size: "<<geno_matrix.rows()<<endl;
-	cout<<"Sample sizs: "<<geno_matrix.cols()<<endl;
+	cout<<"Sample size: "<<geno_matrix.cols()<<endl;
 	cout<<eveP.cols()<<" eigen vectors"<<endl;
 	cout<<eveP.rows()<<" row numbers"<<endl;
 
@@ -668,9 +671,8 @@ void EigenGWAS() {
 	students_t Tdist(geno_matrix.cols() - 1);
 	double pt2tail;
 
-	//calculate beta; possibly faster using mailman
 	MatrixXdr evePS(eveP.rows(), eveP.cols());
-
+	//standardization 
 	for (int i = 0; i < eveP.cols(); i++) {
 		double sum = 0;
 		double sd = 0;
@@ -688,25 +690,51 @@ void EigenGWAS() {
 		}
 	}
 
+	//calculate beta; possibly faster using mailman
 	MatrixXdr EgBeta = geno_matrix * evePS / geno_matrix.cols();
 
 	for (int i = 0; i < EgBeta.cols(); i++) {
-		cout<<"Scanning "<<i+1<<" eigenvector..."<<endl;
+		cout << "Scanning " << i+1 << " eigenvector..." <<endl;
 		ofstream e_file;
 		e_file.open((string(command_line_opts.OUTPUT_PATH) + string("eg."+std::to_string(i+1)+".txt")).c_str());
-		e_file<<"CHR\tSNP\tPOS\tBP\tA1\tA2\tBeta\tSE\tT-stat\tP"<<endl;
+		e_file << "CHR\tSNP\tPOS\tBP\tA1\tA2\tBeta\tSE\tT-stat\tP" << endl;
 		for (int j = 0; j <EgBeta.rows(); j++) {
 			double egB = EgBeta(j, i);
 			double seB = sqrt((1 - pow(EgBeta(j, i), 2))/(evePS.rows() - 1));
 			double t_stat = egB/seB;
-			cout<<"mk: "<<j<<" infor="<<g.get_bim_info(j)<<" egB="<< egB<<" seB="<<seB<< " t="<<t_stat<<endl;
+//			cout << "mk: " << j << " infor=" <<g.get_bim_info(j)<<" egB="<< egB<<" seB="<<seB<< " t="<<t_stat<<endl;
 			double pt2tail = cdf(complement(Tdist, fabs(t_stat))) * 2;
 			e_file<<g.get_bim_info(j)<<"\t"<<std::setprecision(8)<<egB<<"\t"<<seB<<"\t"<<t_stat<<"\t"<<pt2tail<<endl;
 		}
 		e_file.close();
-		cout<<"Finish "<<i+1<<" eigenvector..."<<endl;
+		cout << "Finished " << i+1 << " eigenvector..." <<endl;
 	}
 //		MatrixXdr EigenSe = 
+}
+
+void RandHE(int iter = 10) {
+
+	cout << "Randomized HE, iteration for " << iter << " times" << endl;
+
+	double LB = 0;
+	MatrixXdr Bz(geno_matrix.cols(), 1);
+	std::default_random_engine generator;
+	std::normal_distribution<double> norm_dist(0, 1.0);
+
+	for (int i = 0; i < iter; i++) {
+		for (int j = 0; j < geno_matrix.cols(); j++) {
+			Bz(j, 0) = norm_dist(generator);
+		}
+		MatrixXdr T1 = geno_matrix * Bz;
+		MatrixXdr T2 = (geno_matrix.transpose()) * T1;
+		MatrixXdr Lb = (T2.transpose()) * T2;
+		LB += Lb(0, 0);
+	}
+	cout<< "LB " << LB <<endl;
+	LB /= iter * geno_matrix.rows() * geno_matrix.rows();
+	cout<< "LB2 " << LB <<endl;
+	double me = (LB - geno_matrix.cols())/(geno_matrix.cols() * geno_matrix.cols());
+	cout<< "Me " << 1/me <<endl;
 }
 
 int main(int argc, char const *argv[]) {
@@ -736,6 +764,9 @@ int main(int argc, char const *argv[]) {
 	nthreads = command_line_opts.nthreads;
 	scan = command_line_opts.scan;
 	inbred = command_line_opts.inbred;
+	rhe = command_line_opts.rhe;
+	rhe_it = command_line_opts.rhe_it;
+	propc = command_line_opts.propc;
 
 //read data--universal step
 	if (text_version) {
@@ -792,6 +823,9 @@ int main(int argc, char const *argv[]) {
 
 	clock_t io_end = clock();
 
+
+	if (propc) {
+
 	//TODO: Initialization of c with gaussian distribution
 	c = MatrixXdr::Random(p, k);
 
@@ -817,7 +851,7 @@ int main(int argc, char const *argv[]) {
 	yint_e = new double* [nthreads];
 	for (int t = 0; t < nthreads; t++) {
 		yint_e[t] = new double [hsize*blocksize];
-		memset (yint_e[t], 0, hsize*blocksize * sizeof(double));
+		memset (yint_e[t], 0, hsize * blocksize * sizeof(double));
 	}
 
 	y_e  = new double**[nthreads];
@@ -836,7 +870,7 @@ int main(int argc, char const *argv[]) {
 			y_m[t][i] = new double[blocksize];
 	}
 
-	for (int i=0;i<p;i++) {
+	for (int i=0; i<p; i++) {
 		means(i, 0) = g.get_col_mean(i);
 		stds(i, 0) = g.get_col_std(i);
 	}
@@ -941,12 +975,6 @@ int main(int argc, char const *argv[]) {
 	std::chrono::duration<double> wctduration = std::chrono::system_clock::now() - start;
 	cout<<"Wall clock time = "<<wctduration.count()<<endl;
 
-//EigenGWAS
-	if (scan) {
-		EigenGWAS();
-	}
-
-
 	delete[] sum_op;
 	for (int t = 0 ; t < nthreads ; t++){
 		delete[] yint_e[t];
@@ -973,6 +1001,11 @@ int main(int argc, char const *argv[]) {
 		delete[] y_e[t];
 	}
 	delete[] y_e;
+	} else if (scan) {
+		EigenGWAS();
+	} else if (rhe) {
+		RandHE(rhe_it);
+	}
 
 	return 0;
 }

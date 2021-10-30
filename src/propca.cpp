@@ -89,11 +89,20 @@ bool missing = false;
 bool fast_mode = true;
 bool text_version = false;
 int nthreads = 1;
+
+bool propc = false;
+
+bool given_seed = false;
+int seed;
+
 bool scan = false;
 bool inbred = false;
+
 bool rhe = false;
 int rhe_it = 10;
-bool propc = false;
+
+bool enc = false;
+bool cld = false;
 
 
 void multiply_y_pre_fast_thread(int begin, int end, MatrixXdr &op, int Ncol_op, double *yint_m, double **y_m, double *partialsums, MatrixXdr &res) {
@@ -661,6 +670,7 @@ void print_vals() {
 
 void EigenGWAS() {
 
+	clock_t eg_begin = clock();
 	cout<<"---------------EigenGWAS scan-------------"<<endl;
 	cout<<"SNP size: "<<geno_matrix.rows()<<endl;
 	cout<<"Sample size: "<<geno_matrix.cols()<<endl;
@@ -709,25 +719,36 @@ void EigenGWAS() {
 		e_file.close();
 		cout << "Finished " << i+1 << " eigenvector..." <<endl;
 	}
+
+	clock_t eg_end = clock();
+	double eg_time = double(eg_end - eg_begin) / CLOCKS_PER_SEC;
+	cout<<"RHE time "<< eg_time <<endl;
 //		MatrixXdr EigenSe = 
 }
 
-void RandHE(int iter = 10) {
+void RandHE(int seed, int iter) {
 
 	cout << "Randomized HE, iteration for " << iter << " times" << endl;
 
+	clock_t he_begin = clock();
+
 	double LB = 0;
 	MatrixXdr Bz(geno_matrix.cols(), 1);
-	std::default_random_engine generator;
+	srand(seed);
+	std::default_random_engine generator(seed);
 	std::normal_distribution<double> norm_dist(0, 1.0);
 
 	for (int i = 0; i < iter; i++) {
 		for (int j = 0; j < geno_matrix.cols(); j++) {
 			Bz(j, 0) = norm_dist(generator);
 		}
-		MatrixXdr T1 = geno_matrix * Bz;
-		MatrixXdr T2 = (geno_matrix.transpose()) * T1;
-		MatrixXdr Lb = (T2.transpose()) * T2;
+//		MatrixXdr T1 = geno_matrix * Bz; //(m x n) * (n x1) = mx1
+//		MatrixXdr T2 = T1.transpose() * geno_matrix; // (1xm) * (mxn) = 1xn
+//		MatrixXdr Lb = T2 * (T2.transpose());
+
+		MatrixXdr T1 = geno_matrix * Bz; //(m x n) * (n x1) = mx1
+		MatrixXdr T2 = geno_matrix.transpose() * T1; // (1xm) * (mxn) = 1xn
+		MatrixXdr Lb = T2.transpose() * T2;
 		LB += Lb(0, 0);
 	}
 	cout<< "LB " << LB <<endl;
@@ -735,6 +756,19 @@ void RandHE(int iter = 10) {
 	cout<< "LB2 " << LB <<endl;
 	double me = (LB - geno_matrix.cols())/(geno_matrix.cols() * geno_matrix.cols());
 	cout<< "Me " << 1/me <<endl;
+	clock_t he_end = clock();
+
+	double he_time = double(he_end - he_begin) / CLOCKS_PER_SEC;
+	cout<<"RHE time "<< he_time <<endl;
+
+}
+
+void ENC() {
+
+}
+
+void CLD() {
+
 }
 
 int main(int argc, char const *argv[]) {
@@ -755,18 +789,31 @@ int main(int argc, char const *argv[]) {
 	text_version = command_line_opts.text_version;
     fast_mode = command_line_opts.fast_mode;
 	missing = command_line_opts.missing;
-    MAX_ITER =  command_line_opts.max_iterations; 
+    MAX_ITER = command_line_opts.max_iterations;
 	k_orig = command_line_opts.num_of_evec;
 	debug = command_line_opts.debugmode;
 	check_accuracy = command_line_opts.getaccuracy;
 	var_normalize = command_line_opts.var_normalize;
 	accelerated_em = command_line_opts.accelerated_em;
 	nthreads = command_line_opts.nthreads;
+	given_seed = command_line_opts.given_seed;
+	if (given_seed) {
+		seed = command_line_opts.seed;
+	} else {
+		seed = 1;
+	}
+
+	propc = command_line_opts.propc;
+
 	scan = command_line_opts.scan;
 	inbred = command_line_opts.inbred;
+
 	rhe = command_line_opts.rhe;
 	rhe_it = command_line_opts.rhe_it;
-	propc = command_line_opts.propc;
+
+	enc = command_line_opts.enc;
+
+	cld = command_line_opts.cld;
 
 //read data--universal step
 	if (text_version) {
@@ -1001,10 +1048,17 @@ int main(int argc, char const *argv[]) {
 		delete[] y_e[t];
 	}
 	delete[] y_e;
-	} else if (scan) {
+	}
+
+	if (propc && scan) {
 		EigenGWAS();
 	} else if (rhe) {
-		RandHE(rhe_it);
+		RandHE(given_seed ? std::abs(command_line_opts.seed) : (unsigned int) time(0), 
+		command_line_opts.rhe_it);
+	} else if (enc) {
+		ENC();
+	} else if (cld) {
+
 	}
 
 	return 0;

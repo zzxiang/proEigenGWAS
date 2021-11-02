@@ -17,7 +17,6 @@ struct options {
 
 	bool propc; //master-command
 	int max_iterations;
-	int num_of_evec;
 	int l;
 
 	bool getaccuracy;
@@ -210,9 +209,8 @@ public:
 void parse_args(int argc, char const *argv[]) {
 	
 	// Setting Default Values
-	command_line_opts.num_of_evec = 5;
-	command_line_opts.l = command_line_opts.num_of_evec;
-	command_line_opts.max_iterations = 2 + command_line_opts.num_of_evec;
+	command_line_opts.l = 5;
+	command_line_opts.max_iterations = 2 + command_line_opts.l;
 	command_line_opts.getaccuracy = false;
 	command_line_opts.debugmode = false;
 	command_line_opts.OUTPUT_PATH = "gear_";
@@ -253,10 +251,8 @@ void parse_args(int argc, char const *argv[]) {
 		ConfigFile cfg(cfg_filename);
 		got_genotype_file = cfg.keyExists("genotype");
 		command_line_opts.GENOTYPE_FILE_PATH = cfg.getValueOfKey<string>("genotype", string(""));
-
-		command_line_opts.num_of_evec = cfg.getValueOfKey<int>("num_evec", 5);
-		command_line_opts.l = cfg.getValueOfKey<int>("l", command_line_opts.num_of_evec);
-		command_line_opts.max_iterations = cfg.getValueOfKey<int>("max_iterations", 2 + command_line_opts.num_of_evec);
+		command_line_opts.l = cfg.getValueOfKey<int>("l", 5);
+		command_line_opts.max_iterations = cfg.getValueOfKey<int>("max_iterations", 2 + command_line_opts.l);
 		command_line_opts.getaccuracy = cfg.getValueOfKey<bool>("accuracy", false);
 		command_line_opts.debugmode = cfg.getValueOfKey<bool>("debug", false);
 		command_line_opts.OUTPUT_PATH = cfg.getValueOfKey<string>("output_path", string("fastppca_"));
@@ -272,7 +268,6 @@ void parse_args(int argc, char const *argv[]) {
 		command_line_opts.given_seed = command_line_opts.seed >= 0 ? true : false;
 
 		command_line_opts.propc = cfg.getValueOfKey<bool>("propc", false);
-
 		command_line_opts.scan = cfg.getValueOfKey<bool>("scan", false);
 		command_line_opts.inbred = cfg.getValueOfKey<bool>("inbred", false);
 
@@ -293,50 +288,37 @@ void parse_args(int argc, char const *argv[]) {
 					command_line_opts.GENOTYPE_FILE_PATH = string(argv[i+1]);
 					got_genotype_file = true;
 					i++;
-				}
-				else if (strcmp(argv[i], "-o") == 0) {
+				} else if (strcmp(argv[i], "-o") == 0) {
 					command_line_opts.OUTPUT_PATH = string(argv[i+1]);
 					i++;
-				}
-				else if (strcmp(argv[i], "-k") == 0) {
-					command_line_opts.num_of_evec = atoi(argv[i+1]);
-					i++;
-				}
-				else if (strcmp(argv[i], "-m") == 0) {
+				} else if (strcmp(argv[i], "-m") == 0) {
 					command_line_opts.max_iterations = atoi(argv[i+1]);
 					got_max_iter = true;
 					i++;
-				}
-				else if (strcmp(argv[i], "-nt") == 0) {
+				} else if (strcmp(argv[i], "-nt") == 0) {
 					command_line_opts.nthreads = atoi(argv[i+1]);
 					i++;
-				}
-				else if (strcmp(argv[i], "-seed") == 0) {
+				} else if (strcmp(argv[i], "-seed") == 0) {
 					command_line_opts.seed = atoi(argv[i+1]);
 					command_line_opts.given_seed = command_line_opts.seed >= 0 ? true : false;							
 					i++;
-				}
-				else if (strcmp(argv[i], "-l") == 0) {
+				} else if (strcmp(argv[i], "-l") == 0) {
 					command_line_opts.l = atoi(argv[i+1]);
 					i++;
-				}
-				else if (strcmp(argv[i], "-cl") == 0) {
+				} else if (strcmp(argv[i], "-cl") == 0) {
 					command_line_opts.convergence_limit = atof(argv[i+1]);
 					i++;
-				}
-				else if (strcmp(argv[i], "-aem") == 0) {
+				} else if (strcmp(argv[i], "-aem") == 0) {
 					command_line_opts.accelerated_em = atof(argv[i+1]);
 					i++;
-				}
-				else if (strcmp(argv[i], "-rhe-it") == 0) {
+				} else if (strcmp(argv[i], "-rhe-it") == 0) {
 					command_line_opts.rhe_it = atof(argv[i+1]);
 					i++;
-				}
-				else if (strcmp(argv[i], "enc-snp-ref") == 0) {
+				} else if (strcmp(argv[i], "enc-snp-ref") == 0) {
 					command_line_opts.enc_REFSNP_FILE_PATH = string(argv[i+1]);
 					got_enc_refsnp_file = true;
 					i++;
-				}
+				} 
 				else if (strcmp(argv[i], "-v") == 0)
 					command_line_opts.debugmode = true;
 				else if (strcmp(argv[i], "-vn") == 0)
@@ -389,13 +371,13 @@ void parse_args(int argc, char const *argv[]) {
 					command_line_opts.rhe = true;
 			else if (strcmp(argv[i], "-propc") == 0)
 					command_line_opts.propc = true;
-			else if (strcmp(argv[i], "-cld") == 0) 
+			else if (strcmp(argv[i], "-cld") == 0)
 					command_line_opts.cld = true;
 			else if (strcmp(argv[i], "-enc") == 0)
 					command_line_opts.enc = true;
 		}
 		if (!got_max_iter)
-			command_line_opts.max_iterations = 2 + command_line_opts.num_of_evec;
+			command_line_opts.max_iterations = 2 + command_line_opts.l;
 	}
 
 	if (got_genotype_file == false) {

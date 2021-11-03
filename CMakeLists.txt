@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 2.8.12)
-
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER "g++")
+#set(CMAKE_BUILD_TYPE "Debug")
 
 project(proEigenGWAS)
 
 include_directories(include/)
-
-#set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -lrt")
 set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -pthread")
-
 
 IF (NOT DEFINED SSE_SUPPORT)
     SET(SSE_SUPPORT 0)

@@ -5,21 +5,21 @@
 using namespace std;
 
 void genotype::init_means(bool is_missing) {
-
+	allow_missing = is_missing;
 	columnmeans.resize(Nsnp);
-	for(int i=0;i<Nsnp;i++){
-		double sum = columnsum[i];
-		if(is_missing)
-			columnmeans[i] = sum*1.0/(Nindv-(int)not_O_i[i].size());
+	for (int i = 0; i < Nsnp; i++) {
+		double sum = columnsum[i] * 1.0;
+		if (is_missing)
+			columnmeans[i] = sum * 1.0 / (Nindv - (int) not_O_i[i].size());
 		else
-			columnmeans[i] = sum*1.0/Nindv;
+			columnmeans[i] = sum * 1.0 / Nindv;
 	}
 }
 
 float genotype::get_observed_pj(const std::string &line) {
 	int observed_sum = 0;
 	int observed_ct = 0;
-	for (int j = 0; j < line.size(); j++){
+	for (int j = 0; j < line.size(); j++) {
 		int val = int(line[j]-'0');
 		if (val == 0 || val == 1 || val == 2) {
 			observed_sum += val;
@@ -44,7 +44,7 @@ float genotype::get_observed_pj(const unsigned char* line) {
 		y[3] = (c>>6) & mask;
 		int j0 = k * unitsperword;
 		int lmax = 4;
-		if (k == ncol - 1)  {
+		if (k == ncol - 1) {
 			lmax = Nindv % 4;
 			lmax = (lmax==0) ? 4 : lmax;
 		}
@@ -60,7 +60,7 @@ float genotype::get_observed_pj(const unsigned char* line) {
 			int val = y[l];
 			val--;
 			if (val != 0) {
-				val = (val < 0 ) ? 0 : val;
+				val = (val < 0) ? 0 : val;
 				observed_sum += val;
 				observed_ct++;
 			}
@@ -71,13 +71,13 @@ float genotype::get_observed_pj(const unsigned char* line) {
 
 int simulate_geno_from_random(float p_j) {
 	float rval = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-	float dist_pj[3] = { (1-p_j)*(1-p_j), 2*p_j*(1-p_j), p_j*p_j };
-	if(rval < dist_pj[0] )
+	float dist_pj[3] = {(1 - p_j) * (1 - p_j), 2 * p_j * (1 - p_j), p_j * p_j};
+	if (rval < dist_pj[0])
 		return 0;
-	else if( rval >= dist_pj[0] && rval < (dist_pj[0]+dist_pj[1]))
+	else if(rval >= dist_pj[0] && rval < (dist_pj[0] + dist_pj[1]))
 		return 1;
 	else
-		return 2; 
+		return 2;
 }
 
 // Functions to read text files
@@ -93,7 +93,6 @@ void genotype::read_txt_naive(std::string filename, bool allow_missing) {
 		exit(-1);
 	}
 
-	
 	if(allow_missing){
 		not_O_i.resize(Nsnp);
 		not_O_j.resize(Nindv);	
@@ -104,28 +103,29 @@ void genotype::read_txt_naive(std::string filename, bool allow_missing) {
 	vector <bool> m;
 	vector <bool> l;
 	while (std::getline(ifs, line)) {
-
 		float p_j = get_observed_pj(line);
-
 		int sum = 0;
+		int SqSum = 0;
 		for (int j = 0; j < line.size(); j++) {
-			int val = int(line[j]-'0');
+			int val = int(line[j] - '0');
 			if (val == 9 && !allow_missing) {
 				val = simulate_geno_from_random(p_j);
-			}	
+			}
 
 			if (val == 0) {
 				l.push_back(false);
 				m.push_back(false);
 			} else if (val == 1) {
 				sum += 1;
+				SqSum += 1;
 				l.push_back(true);
 				m.push_back(false);
 			} else if (val == 2) {
 				sum += 2;
+				SqSum += 4;
 				l.push_back(false);
 				m.push_back(true);
-			} else if (val == 9 && allow_missing){
+			} else if (val == 9 && allow_missing) {
 				not_O_i[i].push_back(j);
 				not_O_j[j].push_back(i);
 				l.push_back(false);
@@ -137,6 +137,7 @@ void genotype::read_txt_naive(std::string filename, bool allow_missing) {
 		}
 		i++;
 		columnsum.push_back(sum);
+		columnSqSum.push_back(SqSum);
 		msb.push_back(m);
 		lsb.push_back(l);
 		m.clear();
@@ -153,7 +154,7 @@ void genotype::read_txt_mailman(std::string filename, bool allow_missing) {
 	std::getline(ifs, line);
     std::istringstream iss(line);
     if (!(iss >> Nsnp >> Nindv)) {
-		cout<<"ERROR: Header with number of SNPs and individuals not present"<<endl; 
+		cout << "ERROR: Header with number of SNPs and individuals not present" << endl; 
 		exit(-1);
 	}
 
@@ -172,9 +173,10 @@ void genotype::read_txt_mailman(std::string filename, bool allow_missing) {
 	int i = 0;
 	while (std::getline(ifs, line)) {
 		float p_j = get_observed_pj(line);
-
 		int horiz_seg_no = i / segment_size_hori;
 		int sum = 0;
+		int SqSum = 0;
+		int missingCnt = 0;
 		for (int j = 0; j < line.size(); j++) {
 			int val = int(line[j] - '0');
 
@@ -186,10 +188,12 @@ void genotype::read_txt_mailman(std::string filename, bool allow_missing) {
 				} else {
 					val = simulate_geno_from_random(p_j);
 				}
+				missingCnt++;
 			}
 
 			if (val == 0 || val == 1 || val == 2) {
 				sum += val;
+				SqSum += val * val;
 				p[horiz_seg_no][j] = (3 * p[horiz_seg_no][j]) + val;
 			} else {
 				cout << "ERROR: Invalid character in genotype file" << endl;
@@ -198,6 +202,7 @@ void genotype::read_txt_mailman(std::string filename, bool allow_missing) {
 		}
 		i++;
 		columnsum.push_back(sum);
+		columnSqSum.push_back(SqSum);
 	}
 	init_means(allow_missing);
 }
@@ -308,8 +313,8 @@ void genotype::read_bed_mailman(string filename, bool allow_missing) {
 		not_O_j.resize(Nindv);
 	}
 
-	int sum=0;
 	columnsum.resize(Nsnp);
+	columnSqSum.resize(Nsnp);
 
 	// Note that the coding of 0 and 2 can get flipped relative to plink because plink uses allele frequency (minor)
 	// allele to code a SNP as 0 or 1.
@@ -317,7 +322,9 @@ void genotype::read_bed_mailman(string filename, bool allow_missing) {
 //	vector<int> v(Nindv);
 	int y[4];
 	for (int i = 0; i < Nsnp; i++) {
-		int horiz_seg_no = i/segment_size_hori;
+		int sum = 0;
+		int SqSum = 0;
+		int horiz_seg_no = i / segment_size_hori;
 	   	ifs.read(reinterpret_cast<char*>(gtype), ncol*sizeof(unsigned char)); 
 		float p_j = get_observed_pj(gtype);
     	for (int k = 0; k < ncol; k++) {
@@ -356,10 +363,12 @@ void genotype::read_bed_mailman(string filename, bool allow_missing) {
 				val--;
 				val = (val < 0 ) ? 0 : val;
 				sum += val;
+				SqSum += val * val;
 				p[horiz_seg_no][j] = 3 * p[horiz_seg_no][j] + val;
 			}
     	}
 		columnsum[i] = sum;
+		columnSqSum[i] = SqSum;
 		sum = 0;
 	}
 	init_means(allow_missing);
@@ -379,13 +388,13 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 	msb.resize(Nsnp, std::vector<bool>(Nindv));
 	lsb.resize(Nsnp, std::vector<bool>(Nindv));
 
-	if(allow_missing){
+	if (allow_missing) {
 		not_O_i.resize(Nsnp);
 		not_O_j.resize(Nindv);	
 	}
-	
-	int sum=0;
-	columnsum.resize (Nsnp);    
+
+	columnsum.resize(Nsnp);  
+	columnSqSum.resize(Nsnp);
 
 	// Note that the coding of 0 and 2 can get flipped relative to plink because plink uses allele frequency (minor)
 	// allele to code a SNP as 0 or 1.
@@ -393,8 +402,10 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 	vector<int> v (Nindv);
 	int y[4];
 	for (int i = 0 ; i < Nsnp; i++){
+		int sum = 0;
+		int SqSum = 0;
 	   	ifs.read (reinterpret_cast<char*>(gtype), ncol*sizeof(unsigned char));  
-		float p_j = get_observed_pj(gtype);  		    
+		float p_j = get_observed_pj(gtype); 		    
     	for (int k = 0 ;k < ncol ; k++) {
         	unsigned char c = gtype [k];
 			// Extract PLINK genotypes
@@ -405,16 +416,16 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 			int j0 = k * unitsperword;
 			// Handle number of individuals not being a multiple of 4
 			int lmax = 4;
-			if (k == ncol - 1)  {
-				lmax = Nindv%4;
-				lmax = (lmax==0)?4:lmax;
+			if (k == ncol - 1) {
+				lmax = Nindv % 4;
+				lmax = (lmax == 0) ? 4 : lmax;
 			}	
 			// Note  : Plink uses different values for coding genotypes
 			// Note  : Does not work for missing values
 			// To handle missing data it is recommended to write a separate function. This is easy to do.
 			// This will avoid the performance hit of checking for and handling missing values
-			for ( int l = 0 ; l < lmax; l++){
-				int j = j0 + l ;
+			for (int l = 0; l < lmax; l++) {
+				int j = j0 + l;
 				// Extract  PLINK coded genotype and convert into 0/1/2
 				// PLINK coding: 
 				// 00->0
@@ -422,18 +433,19 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 				// 10->1
 				// 11->2
 				int val = y[l];
-				if(val==1 && !allow_missing){
+				if (val==1 && !allow_missing) {
 					val = simulate_geno_from_random(p_j);
 					val++;
 					val = (val==1) ? 0 : val;
 				}
-				if(val==1 && allow_missing){
+				if (val==1 && allow_missing) {
 					not_O_i[i].push_back(j);
 					not_O_j[j].push_back(i);
 				}
 				val-- ; 
 				val =  (val < 0 ) ? 0 :val ;
 				sum += val;
+				SqSum += val * val;
 				if (val == 0) {
 					lsb[i][j] = false;
 					msb[i][j] = false;
@@ -445,15 +457,14 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 					msb[i][j] = true;
 				} else {
 					cout << "Invalid entry in Genotype Matrix" << endl;
-					exit(-1);				
+					exit(-1);			
 				}
 			}
     	}
 		columnsum[i] = sum;
-		sum = 0;
+		columnSqSum[i] = SqSum;
 	}
-	init_means(allow_missing);	
-
+	init_means(allow_missing);
 	delete[] gtype;
 }
 
@@ -510,8 +521,11 @@ double genotype::get_col_std(int snpindex) {
 	double p_i = get_col_mean(snpindex) / 2;
 	if (p_i == 0 || p_i == 1)
 		return 1.0;
-	double temp = inbred ? sqrt(4 * p_i * (1 - p_i)) : sqrt(2 * p_i * (1 - p_i));
-	return temp;
+	double cnt = allow_missing ? (1.0 * (Nindv - (int) not_O_i[snpindex].size())) : (1.0 * Nindv);
+	double std = sqrt((columnSqSum[snpindex] - columnmeans[snpindex] * columnmeans[snpindex] * cnt) / (cnt - 1));
+//	double std = inbred ? sqrt(4 * p_i * (1 - p_i)) : sqrt(2 * p_i * (1 - p_i));
+//	cout << std0 << " " << std <<endl;
+	return std;
 }
 
 void genotype::generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize) {

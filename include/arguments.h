@@ -13,6 +13,7 @@ using namespace std;
 struct options {
 
 	std::string GENOTYPE_FILE_PATH;
+	bool got_genotype_file;
 	std::string OUTPUT_PATH;
 
 	bool propc; //master-command
@@ -38,13 +39,15 @@ struct options {
 
 	bool rhe; //master-command (rhe, iter, seed)
 	int rhe_it;
+	bool got_pheno_file;
+	std::string PHENO_FILE;
 
 	bool cld; //master-command chromosome-wise ld
 	int chr_num;
 
 	bool enc; //master-command
-	std::string enc_REFSNP_FILE_PATH;
-
+	bool got_enc_refsnp_file;
+	std::string ENC_REFSNP_FILE_PATH;
 };
 
 /***
@@ -207,14 +210,14 @@ public:
 };
 
 void parse_args(int argc, char const *argv[]) {
-	
+
 	// Setting Default Values
 	command_line_opts.l = 5;
 	command_line_opts.max_iterations = 2 + command_line_opts.l;
 	command_line_opts.getaccuracy = false;
 	command_line_opts.debugmode = false;
 	command_line_opts.OUTPUT_PATH = "gear_";
-	bool got_genotype_file = false;
+	command_line_opts.got_genotype_file = false;
 	command_line_opts.var_normalize = false;
 	command_line_opts.accelerated_em = 0;
 	command_line_opts.convergence_limit = -1.0;
@@ -222,15 +225,17 @@ void parse_args(int argc, char const *argv[]) {
 	command_line_opts.fast_mode = true;
 	command_line_opts.missing = false;
 	command_line_opts.text_version = false;
-	command_line_opts.nthreads  = 1;
-	command_line_opts.seed  = -1;
-	command_line_opts.given_seed  = false;
+	command_line_opts.nthreads = 1;
+	command_line_opts.seed = -1;
+	command_line_opts.given_seed = false;
 
 	command_line_opts.scan = false;
 	command_line_opts.inbred = false;
 
 	command_line_opts.rhe = false;
 	command_line_opts.rhe_it = 10;
+	command_line_opts.got_pheno_file = false;
+	command_line_opts.PHENO_FILE = "";
 
 	command_line_opts.propc = false;
 
@@ -238,10 +243,10 @@ void parse_args(int argc, char const *argv[]) {
 	command_line_opts.chr_num = 1;
 
 	command_line_opts.enc = false;
-	bool got_enc_refsnp_file = false;
+	command_line_opts.ENC_REFSNP_FILE_PATH = "";
 
 	if (argc < 3) {
-		cout<<"Correct Usage is "<<argv[0]<<" -p <parameter file>"<<endl;
+		cout<< "Correct Usage is " << argv[0] << " -p <parameter file>" <<endl;
 		exit(-1);
 	}
 
@@ -249,7 +254,7 @@ void parse_args(int argc, char const *argv[]) {
 
 		std::string cfg_filename = std::string(argv[2]);
 		ConfigFile cfg(cfg_filename);
-		got_genotype_file = cfg.keyExists("genotype");
+		command_line_opts.got_genotype_file = cfg.keyExists("genotype");
 		command_line_opts.GENOTYPE_FILE_PATH = cfg.getValueOfKey<string>("genotype", string(""));
 		command_line_opts.l = cfg.getValueOfKey<int>("l", 5);
 		command_line_opts.max_iterations = cfg.getValueOfKey<int>("max_iterations", 2 + command_line_opts.l);
@@ -273,11 +278,12 @@ void parse_args(int argc, char const *argv[]) {
 
 		command_line_opts.rhe = cfg.getValueOfKey<bool>("rhe", false);
 		command_line_opts.rhe_it = cfg.getValueOfKey<bool>("rhe-it", 10);
-
+		command_line_opts.got_pheno_file = cfg.keyExists("pheno");
+		command_line_opts.PHENO_FILE = cfg.getValueOfKey<string>("pheno", string(""));
 		command_line_opts.enc = cfg.getValueOfKey<bool>("enc", false);
 
-		got_enc_refsnp_file = cfg.keyExists("enc-snp-ref");
-		command_line_opts.enc_REFSNP_FILE_PATH = cfg.getValueOfKey<string>("enc-snp-ref", string(""));
+		command_line_opts.got_enc_refsnp_file = cfg.keyExists("enc-snp-ref");
+		command_line_opts.ENC_REFSNP_FILE_PATH = cfg.getValueOfKey<string>("enc-snp-ref", string(""));
 
 		command_line_opts.cld = cfg.getValueOfKey<bool>("cld", false);
 	} else {
@@ -286,7 +292,7 @@ void parse_args(int argc, char const *argv[]) {
 			if (i + 1 != argc) {
 				if (strcmp(argv[i], "-g") == 0) {
 					command_line_opts.GENOTYPE_FILE_PATH = string(argv[i+1]);
-					got_genotype_file = true;
+					command_line_opts.got_genotype_file = true;
 					i++;
 				} else if (strcmp(argv[i], "-o") == 0) {
 					command_line_opts.OUTPUT_PATH = string(argv[i+1]);
@@ -314,11 +320,15 @@ void parse_args(int argc, char const *argv[]) {
 				} else if (strcmp(argv[i], "-rhe-it") == 0) {
 					command_line_opts.rhe_it = atof(argv[i+1]);
 					i++;
-				} else if (strcmp(argv[i], "enc-snp-ref") == 0) {
-					command_line_opts.enc_REFSNP_FILE_PATH = string(argv[i+1]);
-					got_enc_refsnp_file = true;
+				} else if (strcmp(argv[i], "-pheno") == 0) {
+					command_line_opts.PHENO_FILE = string(argv[i+1]);
+					command_line_opts.got_pheno_file = true;
 					i++;
-				} 
+				} else if (strcmp(argv[i], "enc-snp-ref") == 0) {
+					command_line_opts.ENC_REFSNP_FILE_PATH = string(argv[i+1]);
+					command_line_opts.got_enc_refsnp_file = true;
+					i++;
+				}
 				else if (strcmp(argv[i], "-v") == 0)
 					command_line_opts.debugmode = true;
 				else if (strcmp(argv[i], "-vn") == 0)
@@ -354,43 +364,46 @@ void parse_args(int argc, char const *argv[]) {
 			else if (strcmp(argv[i], "-a") == 0)
 				command_line_opts.getaccuracy = true;
 			else if (strcmp(argv[i], "-vn") == 0)
-					command_line_opts.var_normalize = true;
+				command_line_opts.var_normalize = true;
 			else if (strcmp(argv[i], "-mem") == 0)
-					command_line_opts.memory_efficient = true;
+				command_line_opts.memory_efficient = true;
 			else if (strcmp(argv[i], "-nfm") == 0)
-					command_line_opts.fast_mode = false;
+				command_line_opts.fast_mode = false;
 			else if (strcmp(argv[i], "-miss") == 0)
-					command_line_opts.missing = true;
+				command_line_opts.missing = true;
 			else if (strcmp(argv[i], "-txt") == 0)
-					command_line_opts.text_version = true;
+				command_line_opts.text_version = true;
 			else if (strcmp(argv[i], "-scan") == 0)
-					command_line_opts.scan = true;
+				command_line_opts.scan = true;
 			else if (strcmp(argv[i], "-inbred") == 0)
-					command_line_opts.inbred = true;
+				command_line_opts.inbred = true;
 			else if (strcmp(argv[i], "-rhe") == 0)
-					command_line_opts.rhe = true;
+				command_line_opts.rhe = true;
 			else if (strcmp(argv[i], "-propc") == 0)
-					command_line_opts.propc = true;
+				command_line_opts.propc = true;
 			else if (strcmp(argv[i], "-cld") == 0)
-					command_line_opts.cld = true;
+				command_line_opts.cld = true;
 			else if (strcmp(argv[i], "-enc") == 0)
-					command_line_opts.enc = true;
+				command_line_opts.enc = true;
 		}
 		if (!got_max_iter)
 			command_line_opts.max_iterations = 2 + command_line_opts.l;
 	}
 
-	if (got_genotype_file == false) {
+	if (command_line_opts.got_genotype_file == false) {
 		cout << "Genotype file missing" << endl;
 		cout << "Correct Usage is " << argv[0] << " -g <genotype file> -k <num_of_evec> -m <max_iterations> -v (for debugmode) -a (for getting accuracy)" << endl;
 		exit(-1);
 	}
 
-	if (command_line_opts.enc && !got_enc_refsnp_file) {
+	if (command_line_opts.enc && !command_line_opts.got_enc_refsnp_file) {
 		cout << "'enc' hasn't found 'enc-ref-file'" << endl;
 		exit(-1);
 	}
 
+	if (command_line_opts.rhe && !command_line_opts.got_pheno_file) {
+		cout << "'rhe' hasn't found 'phe'" <<endl;
+	}
 }
 
 #endif

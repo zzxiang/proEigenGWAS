@@ -38,12 +38,12 @@ typedef Matrix<double, Dynamic, Dynamic, RowMajor> MatrixXdr;
 
 //Intermediate Variables
 //
-// How to batch columns: 
+// How to batch columns:
 int blocksize;
 double **partialsums;
-double *sum_op;		
+double *sum_op;
 
-// Intermediate computations in E-step. 
+// Intermediate computations in E-step.
 // Size = 3^(log_3(n)) * k
 double **yint_e;
 //  n X k
@@ -57,8 +57,6 @@ double ***y_m;
 
 struct timespec t0;
 
-clock_t total_begin = clock();
-
 genotype g;
 MatrixXdr geno_matrix; //(p,n)
 
@@ -70,7 +68,7 @@ MatrixXdr c; //(p,k)
 MatrixXdr means; //(p,1)
 MatrixXdr stds; //(p,1)
 MatrixXdr eveP; //(n,k) //projection matrix for EigenGWAS
-
+std::vector<std::vector<double> > numbers;
 options command_line_opts;
 
 bool debug = false;
@@ -94,6 +92,8 @@ bool inbred = false;
 
 bool rhe = false;
 int rhe_it = 10;
+bool got_pheno_file = false;
+string phe_File = "";
 
 bool enc = false;
 bool cld = false;
@@ -262,14 +262,14 @@ void multiply_y_pre_fast_thread(int begin, int end, MatrixXdr &op, int Ncol_op, 
 
 /*
  * M-step: Compute C = Y E 
- * Y : p X n genotype matrix
- * E : n K k matrix: X^{T} (XX^{T})^{-1}
+ * Y: p X n genotype matrix
+ * E: n K k matrix: X^{T} (XX^{T})^{-1}
  * C = p X k matrix
  *
- * op : E
- * Ncol_op : k
- * res : C
- * subtract_means :
+ * op: E
+ * Ncol_op: k
+ * res: C
+ * subtract_means:
  */
 void multiply_y_pre_fast(MatrixXdr &op, int Ncol_op, MatrixXdr &res, bool subtract_means) {
 
@@ -340,7 +340,7 @@ void multiply_y_pre_fast(MatrixXdr &op, int Ncol_op, MatrixXdr &res, bool subtra
  		for (int k_iter = 0; k_iter < Ncol_op; k_iter++) {
 			res(p_iter, k_iter) = res(p_iter, k_iter) - (g.get_col_mean(p_iter) * sum_op[k_iter]);
 			if (var_normalize)
-				res(p_iter, k_iter) = res(p_iter, k_iter)/(g.get_col_std(p_iter));		
+				res(p_iter, k_iter) = res(p_iter, k_iter) / (g.get_col_std(p_iter));		
  		}
  	}
 }
@@ -448,8 +448,8 @@ MatrixXdr run_EM_not_missing(MatrixXdr &c_orig) {
 	MatrixXdr c_new(p, k);
 	c_temp = ((c_orig.transpose() * c_orig).inverse()) * (c_orig.transpose());
 
-	#if DEBUG==1
-		if(debug){
+	#if DEBUG == 1
+		if (debug) {
 			print_timenl();
 		}
 	#endif
@@ -494,11 +494,9 @@ MatrixXdr run_EM_not_missing(MatrixXdr &c_orig) {
 }
 
 MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
-	
 	MatrixXdr c_new(p, k);
-
 	MatrixXdr mu(k, n);
-	
+
 	// E step
 	MatrixXdr c_temp(k,k);
 	c_temp = c_orig.transpose() * c_orig;
@@ -510,21 +508,21 @@ MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
 
 	MatrixXdr M_temp(k,1);
 	M_temp = c_orig.transpose() *  means;
-	
+
 	for (int j = 0; j < n; j++) {
-		MatrixXdr D(k,k);
-		MatrixXdr M_to_remove(k,1);
-		D = MatrixXdr::Zero(k,k);
-		M_to_remove = MatrixXdr::Zero(k,1);
-		for(int i=0;i<g.not_O_j[j].size();i++){
+		MatrixXdr D(k, k);
+		MatrixXdr M_to_remove(k, 1);
+		D = MatrixXdr::Zero(k, k);
+		M_to_remove = MatrixXdr::Zero(k, 1);
+		for (int i = 0; i < g.not_O_j[j].size(); i++) {
 			int idx = g.not_O_j[j][i];
 			D = D + (c_orig.row(idx).transpose() * c_orig.row(idx));
-			M_to_remove = M_to_remove + (c_orig.row(idx).transpose()*g.get_col_mean(idx));
+			M_to_remove = M_to_remove + (c_orig.row(idx).transpose() * g.get_col_mean(idx));
 		}
-		mu.col(j) = (c_temp-D).inverse() * ( T.col(j) - M_temp + M_to_remove);
+		mu.col(j) = (c_temp-D).inverse() * (T.col(j) - M_temp + M_to_remove);
 	}
 
-	#if DEBUG==1
+	#if DEBUG == 1
 		if(debug){
 			ofstream x_file;
 			x_file.open((string(command_line_opts.OUTPUT_PATH)+string("x_in_fn_vals.txt")).c_str());
@@ -533,53 +531,49 @@ MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
 		}
 	#endif
 
-
 	// M step
-
-	MatrixXdr mu_temp(k,k);
+	MatrixXdr mu_temp(k, k);
 	mu_temp = mu * mu.transpose();
-	MatrixXdr T1(p,k);
+	MatrixXdr T1(p, k);
 	MatrixXdr mu_fn;
 	mu_fn = mu.transpose();
-	multiply_y_pre(mu_fn,k,T1,false);
-	MatrixXdr mu_sum(k,1);
-	mu_sum = MatrixXdr::Zero(k,1);
+	multiply_y_pre(mu_fn, k, T1, false);
+	MatrixXdr mu_sum(k, 1);
+	mu_sum = MatrixXdr::Zero(k, 1);
 	mu_sum = mu.rowwise().sum();
 
-	for(int i=0;i<p;i++){
-		MatrixXdr D(k,k);
-		MatrixXdr mu_to_remove(k,1);
-		D = MatrixXdr::Zero(k,k);
-		mu_to_remove = MatrixXdr::Zero(k,1);
-		for(int j=0;j<g.not_O_i[i].size();j++){
+	for(int i = 0; i < p; i++){
+		MatrixXdr D(k, k);
+		MatrixXdr mu_to_remove(k, 1);
+		D = MatrixXdr::Zero(k, k);
+		mu_to_remove = MatrixXdr::Zero(k, 1);
+		for(int j = 0; j < g.not_O_i[i].size(); j++){
 			int idx = g.not_O_i[i][j];
 			D = D + (mu.col(idx) * mu.col(idx).transpose());
 			mu_to_remove = mu_to_remove + (mu.col(idx));
 		}
-		c_new.row(i) = (((mu_temp-D).inverse()) * (T1.row(i).transpose() -  ( g.get_col_mean(i) * (mu_sum-mu_to_remove)))).transpose();
+		c_new.row(i) = (((mu_temp-D).inverse()) * (T1.row(i).transpose() - (g.get_col_mean(i) * (mu_sum-mu_to_remove)))).transpose();
 		double mean;
 		mean = g.get_col_sum(i);
-		mean = mean -  (c_orig.row(i)*(mu_sum-mu_to_remove))(0,0);
+		mean = mean -  (c_orig.row(i)*(mu_sum-mu_to_remove))(0, 0);
 		mean = mean * 1.0 / (n-g.not_O_i[i].size());
-		g.update_col_mean(i,mean);
+		g.update_col_mean(i, mean);
 	}
 
 	// IMPORTANT: Update the value of means variable present locally, so that for next iteration, updated value of means is used.
 	for (int i = 0; i < p; i++) {
-		means(i,0) = g.get_col_mean(i);
+		means(i, 0) = g.get_col_mean(i);
 		// Also updating std, just for consistency, though, it is not used presently.
-		stds(i,0) = g.get_col_std(i);
+		stds(i, 0) = g.get_col_std(i);
 	}
 
 	return c_new;
 }
 
 MatrixXdr run_EM(MatrixXdr &c_orig) {
-
 	if (missing) {
 		return run_EM_missing(c_orig);
-	}
-	else {
+	} else {
 		return run_EM_not_missing(c_orig);
 	}
 }
@@ -588,49 +582,48 @@ void print_vals() {
 
 	HouseholderQR<MatrixXdr> qr(c);
 	MatrixXdr Q;
-	Q = qr.householderQ() * MatrixXdr::Identity(p,k);
-	MatrixXdr q_t(k,p);
+	Q = qr.householderQ() * MatrixXdr::Identity(p, k);
+	MatrixXdr q_t(k, p);
 	q_t = Q.transpose();
-	MatrixXdr b(k,n);
+	MatrixXdr b(k, n);
 
 	// Need this for subtracting the correct mean in case of missing data
 	if (missing) {
 		multiply_y_post(q_t, k, b, false);
 		// Just calculating b from seen data
-		MatrixXdr M_temp(k,1);
+		MatrixXdr M_temp(k, 1);
 		M_temp = q_t * means;
-		for (int j=0; j<n; j++){
-			MatrixXdr M_to_remove(k,1);
-			M_to_remove = MatrixXdr::Zero(k,1);
-			for (int i=0; i<g.not_O_j[j].size(); i++) {
+		for (int j = 0; j < n; j++) {
+			MatrixXdr M_to_remove(k, 1);
+			M_to_remove = MatrixXdr::Zero(k, 1);
+			for (int i = 0; i < g.not_O_j[j].size(); i++) {
 				int idx = g.not_O_j[j][i];
-				M_to_remove = M_to_remove + (Q.row(idx).transpose()*g.get_col_mean(idx));
+				M_to_remove = M_to_remove + (Q.row(idx).transpose() * g.get_col_mean(idx));
 			}
 			b.col(j) -= (M_temp - M_to_remove);
 		}
-	}
-	else{
+	} else{
 		multiply_y_post(q_t, k, b, true);
 	}
 
 	JacobiSVD<MatrixXdr> b_svd(b, ComputeThinU | ComputeThinV);
-	MatrixXdr u_l; 
+	MatrixXdr u_l;
 	u_l = b_svd.matrixU();
 	MatrixXdr v_l;
 	v_l = b_svd.matrixV();
 	MatrixXdr u_k;
-	MatrixXdr v_k,d_k;
+	MatrixXdr v_k, d_k;
 	u_k = u_l.leftCols(k_orig);
 	v_k = v_l.leftCols(k_orig);
 
 	ofstream evec_file;
-	evec_file.open((string(command_line_opts.OUTPUT_PATH)+string("evecs.txt")).c_str());
-	evec_file<< std::setprecision(15) << Q*u_k << endl;
+	evec_file.open((string(command_line_opts.OUTPUT_PATH) + string("evecs.txt")).c_str());
+	evec_file << std::setprecision(15) << Q * u_k << endl;
 	evec_file.close();
 	ofstream eval_file;
-	eval_file.open((string(command_line_opts.OUTPUT_PATH)+string("evals.txt")).c_str());
-	for(int kk =0 ; kk < k_orig ; kk++)
-		eval_file << std::setprecision(15)<< (b_svd.singularValues())(kk)*(b_svd.singularValues())(kk)/g.Nsnp<<endl;
+	eval_file.open((string(command_line_opts.OUTPUT_PATH) + string("evals.txt")).c_str());
+	for(int kk = 0; kk < k_orig; kk++)
+		eval_file << std::setprecision(15) << (b_svd.singularValues())(kk) * (b_svd.singularValues())(kk)/g.Nsnp<<endl;
 	eval_file.close();
 
 	eveP = v_l.leftCols(k_orig);
@@ -649,7 +642,7 @@ void print_vals() {
 		means_file.open((string(command_line_opts.OUTPUT_PATH)+string("means.txt")).c_str());
 		means_file<<std::setprecision(15)<<means<<endl;
 		means_file.close();
-		
+
 		d_k = MatrixXdr::Zero(k_orig, k_orig);
 		for(int kk =0 ; kk < k_orig ; kk++)
 			d_k(kk,kk)  =(b_svd.singularValues())(kk);
@@ -662,79 +655,85 @@ void print_vals() {
 	}
 }
 
-void EigenGWAS() {
+void EigenGWAS(MatrixXdr IndEigenVec) {
 
 	clock_t eg_begin = clock();
 	cout << "---------------EigenGWAS scan-------------" << endl;
-	cout << "SNP size: " << p << endl;
-	cout << "Sample size: " << n << endl;
-	cout << eveP.cols() << " eigen vectors" << endl;
-	cout << eveP.rows() << " row numbers" << endl;
+	cout << "SNP number: " << g.Nsnp << endl;
+	cout << "Sample size: " << g.Nindv << endl;
 
-	using boost::math::students_t;
-	students_t Tdist(n - 1);
-	double pt2tail;
+	cout << "Eigenvector number: " << IndEigenVec.cols() <<endl;
 
-	MatrixXdr evePS(eveP.rows(), eveP.cols());
-	//standardization
-	for (int i = 0; i < eveP.cols(); i++) {
-		double sum = 0;
-		double sd = 0;
-		double eSq = 0;
-
-		for (int j = 0; j < eveP.rows(); j++) {
-			sum += eveP(j, i);
-			eSq += eveP(j, i) * eveP(j, i);
+	MatrixXdr evePS(IndEigenVec.rows(), IndEigenVec.cols());
+	cout << "Standardization eigenvec" << endl;
+	for (int i = 0; i < evePS.cols(); i++) {
+		double sum = 0, sd = 0, eSq = 0, m = 0;
+		for (int j = 0; j < evePS.rows(); j++) {
+			sum += IndEigenVec(j, i);
+			eSq += IndEigenVec(j, i) * IndEigenVec(j, i);
 		}
-
-		double m = sum/eveP.rows();
-		sd = sqrt((eSq - m * m * eveP.rows())/(eveP.rows() - 1));
-		for (int j = 0; j < eveP.rows(); j++) {
-			evePS(j, i) = (eveP(j, i) - m)/sd;
+		m = sum / IndEigenVec.rows();
+		sd = sqrt((eSq - m * m * IndEigenVec.rows()) / (IndEigenVec.rows() - 1));
+		for (int j = 0; j < IndEigenVec.rows(); j++) {
+			evePS(j, i) = (IndEigenVec(j, i) - m) / sd;
 		}
 	}
 
-//	cout<<" conventional X"<<endl;
-	//calculate beta; possibly faster using mailman
-//	MatrixXdr EgBetaC = geno_matrix * evePS / geno_matrix.cols();
-
 	//using mailman
-	MatrixXdr EgBeta(p, eveP.cols());
+	MatrixXdr EgBeta(g.Nsnp, IndEigenVec.cols());
 	multiply_y_pre(evePS, evePS.cols(), EgBeta, true);
-	cout<<" conventional X"<<endl;
 
-	EgBeta = EgBeta/n;
+	EgBeta = EgBeta / g.Nindv;
 	for (int i = 0; i < EgBeta.cols(); i++) {
 		cout << EgBeta(0, i) <<endl;
 	}
 
+	using boost::math::students_t;
+	students_t Tdist(g.Nindv - 1);
+
 	for (int i = 0; i < EgBeta.cols(); i++) {
-		cout << "Scanning " << i+1 << " eigenvector..." <<endl;
+		cout << "Scanning eigenvector " << i + 1 << endl;
 		ofstream e_file;
 		e_file.open((string(command_line_opts.OUTPUT_PATH) + string("eg."+std::to_string(i+1)+".txt")).c_str());
 		e_file << "CHR\tSNP\tPOS\tBP\tA1\tA2\tBeta\tSE\tT-stat\tP" << endl;
 		for (int j = 0; j <EgBeta.rows(); j++) {
-			double egB = EgBeta(j, i);
-			double seB = sqrt((1 - pow(EgBeta(j, i), 2))/(n - 1));
-			double t_stat = egB/seB;
-//			cout << "mk: " << j << " infor=" <<g.get_bim_info(j)<<" egB="<< egB<<" seB="<<seB<< " t="<<t_stat<<endl;
+			double seB = sqrt((1 - pow(EgBeta(j, i), 2))/(g.Nindv - 1));
+			double t_stat = EgBeta(j, i) / seB;
+			cout << "MK: " << j << " infor=" << g.get_bim_info(j) << " egB=" << EgBeta(j, i) << " seB=" << seB << " t=" << t_stat << endl;
 			double pt2tail = cdf(complement(Tdist, fabs(t_stat))) * 2;
-			e_file<<g.get_bim_info(j)<<"\t"<<std::setprecision(8)<<egB<<"\t"<<seB<<"\t"<<t_stat<<"\t"<<pt2tail<<endl;
+			e_file << g.get_bim_info(j) << "\t" << std::setprecision(8) << EgBeta(j, i) << "\t" << seB << "\t" << t_stat << "\t" << pt2tail <<endl;
 		}
 		e_file.close();
-		cout << "Finished " << i+1 << " eigenvector..." <<endl;
 	}
 
 	clock_t eg_end = clock();
 	double eg_time = double(eg_end - eg_begin) / CLOCKS_PER_SEC;
-	cout<<"RHE time "<< eg_time <<endl;
-//		MatrixXdr EigenSe = 
+	cout << "EigenGWAS total time " << eg_time << endl;
 }
 
-void RandHE_fast(int seed, int iter) {
+void RHE_read_pheno(string phe_file) {
+   	ifstream ifs(phe_file.c_str(), ios::in);
+	std::string temp;
+
+	while (std::getline(ifs, temp)) {
+    std::istringstream buffer(temp);
+    std::vector<double> line((std::istream_iterator<double>(buffer)),
+                             std::istream_iterator<double>());
+    	numbers.push_back(line);
+	}
+
+	for (auto it = numbers.begin(); it != numbers.end(); it++) {
+		vector<double> n1 = *it;
+		for (auto it1 = n1.begin(); it1 != n1.end(); it1++) {
+			cout << (*it1) << " ";
+		}
+		cout << endl;
+	}
+}
+
+void RHE_reg(int seed, int iter) {
 
 	cout << "Randomized HE (mailman), iteration for " << iter << " times" << endl;
-
 	clock_t he_begin = clock();
 
 	double LB = 0;
@@ -775,10 +774,8 @@ void RandHE_fast(int seed, int iter) {
 	clock_t he_end = clock();
 
 	double he_time = double(he_end - he_begin) / CLOCKS_PER_SEC;
-	cout<<"RHE time "<< he_time <<endl;
-
+	cout << "RHE time " << he_time << endl;
 }
-
 
 void ENC() {
 
@@ -825,46 +822,161 @@ void setMem(int block_size) {
 }
 
 void cleanMem() {
-
 	int hsegsize = g.segment_size_hori;	// = log_3(n)
 	delete[] sum_op;
-	for (int t = 0 ; t < nthreads ; t++){
+	for (int t = 0; t < nthreads; t++) {
 		delete[] yint_e[t];
 	}
 	delete[] yint_e;
 
-	for (int t = 0 ; t < nthreads ; t++){
+	for (int t = 0; t < nthreads; t++) {
 		delete[] yint_m[t];
 		delete[] partialsums[t];
 	}
 	delete[] yint_m;
 	delete[] partialsums;
 
-	for (int t = 0 ; t < nthreads ; t++){
+	for (int t = 0 ; t < nthreads ; t++) {
 		for (int i  = 0 ; i < hsegsize; i++)
 			delete[] y_m [t][i];
 		delete[] y_m[t];
 	}
 	delete[] y_m;
 
-	for (int t = 0 ; t < nthreads ; t++){
-		for (int i  = 0 ; i < g.Nindv; i++)
+	for (int t = 0; t < nthreads; t++) {
+		for (int i  = 0; i < g.Nindv; i++)
 			delete[] y_e[t][i]; 
 		delete[] y_e[t];
 	}
 	delete[] y_e;
+}
 
+void ProPC() {
+
+	clock_t pc_begin = clock();
+
+	pair<double,double> prev_error = make_pair(0.0, 0.0);
+	bool toStop = false;
+	if (convergence_limit != -1)
+		toStop = true;
+
+	double prevnll = 0.0;
+
+	c.resize(p, k);
+	means.resize(p, 1);
+	stds.resize(p, 1);
+	for (int i = 0; i < p; i++) {
+		means(i, 0) = g.get_col_mean(i);
+		stds(i, 0) = g.get_col_std(i);
+	}
+
+	std::default_random_engine generator(seed);
+	std::normal_distribution<double> norm_dist(0, 1.0);
+	for (int i = 0; i < c.rows(); i++)
+		for (int j = 0; j < c.cols(); j++)
+			c(i, j) = norm_dist(generator);
+	// Initial intermediate data structures
+	// Operate in blocks to improve caching
+	//
+
+	ofstream c_file;
+	if (debug) {
+		c_file.open((string(command_line_opts.OUTPUT_PATH) + string("cvals_orig.txt")).c_str());
+		c_file << std::setprecision(15) << c << endl;
+		c_file.close();
+		printf("Read Matrix\n");
+	}
+
+	cout << "Running on Dataset of " << g.Nsnp << " SNPs and " << g.Nindv << " Individuals" << endl;
+
+	#if SSE_SUPPORT==1
+		if(fast_mode)
+			cout<<"Using Optimized SSE FastMultiply"<<endl;
+	#endif
+
+	clock_t it_begin = clock();
+	for (int i = 0; i < MAX_ITER; i++) {
+		MatrixXdr c1, c2, cint, r, v;
+		double a, nll;
+		if (debug) {
+			print_time ();
+			cout << "*********** Begin epoch " << i << "***********" << endl;
+		}
+		if (accelerated_em != 0) {
+			#if DEBUG==1
+			if (debug) {
+				print_time();
+				cout << "Before EM" << endl;
+			}
+			#endif
+			c1 = run_EM(c);
+			c2 = run_EM(c1);
+			#if DEBUG==1
+			if (debug) {
+				print_time();
+				cout << "After EM but before acceleration" << endl;
+			}
+			#endif
+			r = c1 - c;
+			v = (c2 - c1) - r;
+			a = -1.0 * r.norm() / (v.norm()) ;
+			if (accelerated_em == 1) {
+				if (a > -1) {
+					a = -1;
+					cint = c2;
+				} else {
+					cint = c - 2 * a * r + a * a * v;
+					nll = get_error_norm(cint).second;
+					if ( i > 0 ) {
+						while ( nll>prevnll && a < -1) {
+							a = 0.5 * (a-1);
+							cint = c - 2 * a * r + (a * a * v);
+							nll = get_error_norm(cint).second;
+						}
+					}
+				}
+				c = cint;
+			} else if (accelerated_em == 2) {
+				cint = c - 2 * a * r + a * a * v;
+				c = cint;
+				// c = run_EM(cint);
+			}
+		} else {
+			c = run_EM(c);
+		}
+
+		if (accelerated_em == 1 || check_accuracy || toStop) {
+			pair<double, double> e = get_error_norm(c);
+				prevnll = e.second;
+				if (check_accuracy)
+					cout << "Iteration " << i+1 << "  " << std::setprecision(15) << e.first << "  " << e.second << endl;
+				if (abs(e.first - prev_error.first) <= convergence_limit) {
+					cout << "Breaking after " << i+1 << " iterations" << endl;
+					break;
+				}
+				prev_error = e;
+			}
+			if (debug) {
+				print_time();
+				cout<< "*********** End epoch " << i << "***********" << endl;
+			}
+		}
+
+		clock_t it_end = clock();
+
+	    print_vals();
+
+		clock_t pc_end = clock();
+		double avg_it_time = double(it_end - it_begin) / (MAX_ITER * 1.0 * CLOCKS_PER_SEC);
+		double total_time = double(pc_end - pc_begin) / CLOCKS_PER_SEC;
+		cout << "\nAVG Iteration Time: " << avg_it_time << "\nTotal runtime: " << total_time << endl;
 }
 
 int main(int argc, char const *argv[]) {
 
 	auto start = std::chrono::system_clock::now();
-
 	clock_t io_begin = clock();
     clock_gettime(CLOCK_REALTIME, &t0);
-
-	pair<double,double> prev_error = make_pair(0.0, 0.0);
-	double prevnll = 0.0;
 
 	parse_args(argc, argv);
 
@@ -891,9 +1003,9 @@ int main(int argc, char const *argv[]) {
 
 	rhe = command_line_opts.rhe;
 	rhe_it = command_line_opts.rhe_it;
+	got_pheno_file = command_line_opts.got_pheno_file;
 
 	enc = command_line_opts.enc;
-
 	cld = command_line_opts.cld;
 
 //read data--universal step
@@ -913,15 +1025,15 @@ int main(int argc, char const *argv[]) {
 
 	//TODO: Implement these codes.
 	if (missing && !fast_mode) {
-		cout<<"Missing version works only with mailman i.e. fast mode\n EXITING..."<<endl;
+		cout << "Missing version works only with mailman i.e. fast mode\n EXITING..." << endl;
 		exit(-1);
 	}
 	if (fast_mode && memory_efficient) {
-		cout<<"Memory effecient version for mailman EM not yet implemented"<<endl;
-		cout<<"Ignoring Memory effecient Flag"<<endl;
+		cout << "Memory effecient version for mailman EM not yet implemented" << endl;
+		cout << "Ignoring Memory effecient Flag" << endl;
 	}
 	if (missing && var_normalize) {
-		cout<<"Missing version works only without variance normalization\n EXITING..."<<endl;
+		cout << "Missing version works only without variance normalization\n EXITING..." << endl;
 		exit(-1);
 	}
 
@@ -931,9 +1043,6 @@ int main(int argc, char const *argv[]) {
 	p = g.Nsnp;
 	n = g.Nindv;
 	convergence_limit = command_line_opts.convergence_limit;
-	bool toStop = false;
-	if (convergence_limit != -1)
-		toStop = true;
 
 	if (command_line_opts.given_seed)
 		srand(command_line_opts.seed);
@@ -946,137 +1055,26 @@ int main(int argc, char const *argv[]) {
 		geno_matrix.resize(p, n);
 		g.generate_eigen_geno(geno_matrix, var_normalize);
 	}
-	clock_t io_end = clock();
 
+	clock_t io_end = clock();
+	double io_time = double(io_end - io_begin) / CLOCKS_PER_SEC;
+	cout<< "IO Time: " << io_time << endl;
 
 	if (propc) {
 		setMem(k);
-
-		cout << "propc" << endl;
-
-		c.resize(p, k);
-		means.resize(p, 1);
-		stds.resize(p, 1);
-		for (int i = 0; i < p; i++) {
-			means(i, 0) = g.get_col_mean(i);
-			stds(i, 0) = g.get_col_std(i);
-		}
-
-		std::default_random_engine generator(seed);
-		std::normal_distribution<double> norm_dist(0, 1.0);
-		for (int i = 0; i < c.rows(); i++)
-			for (int j = 0; j < c.cols(); j++)
-				c(i, j) = norm_dist(generator);
-		cout << "propc1" << endl;
-		// Initial intermediate data structures
-		// Operate in blocks to improve caching
-		//
-
-		ofstream c_file;
-		if (debug) {
-			c_file.open((string(command_line_opts.OUTPUT_PATH) + string("cvals_orig.txt")).c_str());
-			c_file<<std::setprecision(15)<<c<<endl;
-			c_file.close();
-			printf("Read Matrix\n");
-		}
-
-		cout << "Running on Dataset of " << g.Nsnp << " SNPs and " << g.Nindv << " Individuals" << endl;
-
-		#if SSE_SUPPORT==1
-			if(fast_mode)
-				cout<<"Using Optimized SSE FastMultiply"<<endl;
-		#endif
-
-		clock_t it_begin = clock();
-		for (int i = 0; i < MAX_ITER; i++) {
-
-			MatrixXdr c1, c2, cint, r, v;
-			double a, nll;
-			if (debug) {
-				print_time ();
-				cout << "*********** Begin epoch " << i << "***********" << endl;
-			}
-			if (accelerated_em != 0) {
-				#if DEBUG==1
-				if (debug) {
-					print_time();
-					cout << "Before EM" << endl;
-				}
-				#endif
-				c1 = run_EM(c);
-				c2 = run_EM(c1);
-				#if DEBUG==1
-				if (debug) {
-					print_time();
-					cout << "After EM but before acceleration" << endl;
-				}
-				#endif
-				r = c1 - c;
-				v = (c2-c1) - r;
-				a = -1.0 * r.norm() / (v.norm()) ;
-				if (accelerated_em == 1) {
-					if (a > -1) {
-						a = -1;
-						cint = c2;
-					} else {
-						cint = c - 2 * a * r + a * a * v;
-						nll = get_error_norm(cint).second;
-						if ( i > 0 ) {
-							while ( nll>prevnll && a < -1) {
-								a = 0.5 * (a-1);
-								cint = c - 2 * a * r + (a * a * v);
-								nll = get_error_norm(cint).second;
-							}
-						}
-					}
-					c = cint;
-				} else if (accelerated_em == 2) {
-					cint = c - 2 * a * r + a * a * v;
-					c = cint;
-					// c = run_EM(cint);
-				}
-			} else {
-				c = run_EM(c);
-			}
-
-			if (accelerated_em == 1 || check_accuracy || toStop) {
-				pair<double, double> e = get_error_norm(c);
-				prevnll = e.second;
-				if (check_accuracy) 
-					cout << "Iteration " << i+1 << "  " << std::setprecision(15) << e.first << "  " << e.second << endl;
-				if (abs(e.first - prev_error.first) <= convergence_limit) {
-					cout << "Breaking after " << i+1 << " iterations" << endl;
-					break;
-				}
-				prev_error = e;
-			}
-			if (debug) {
-				print_time();
-				cout<< "*********** End epoch " << i << "***********" << endl;
-			}
-		}
-
-		clock_t it_end = clock();
-
-	    print_vals();
-
-		clock_t total_end = clock();
-		double io_time = double(io_end - io_begin) / CLOCKS_PER_SEC;
-		double avg_it_time = double(it_end - it_begin) / (MAX_ITER * 1.0 * CLOCKS_PER_SEC);
-		double total_time = double(total_end - total_begin) / CLOCKS_PER_SEC;
-		cout<<"IO Time: "<<io_time<<"\nAVG Iteration Time: "<<avg_it_time<<"\nTotal runtime: "<<total_time<<endl;
-
-		std::chrono::duration<double> wctduration = std::chrono::system_clock::now() - start;
-		cout<<"Wall clock time = "<<wctduration.count()<<endl;
+		ProPC();
 		cleanMem();
-	}
-	if (propc && scan) {
+	} else if (scan) {
 		setMem(k);
-		EigenGWAS();
+		ProPC();
+		EigenGWAS(eveP);
 		cleanMem();
 	} else if (rhe) {
+		if (command_line_opts.got_pheno_file) {
+			RHE_read_pheno(command_line_opts.PHENO_FILE);
+		}
 		setMem(command_line_opts.rhe_it);
-		RandHE_fast(seed, command_line_opts.rhe_it);
+		RHE_reg(seed, command_line_opts.rhe_it);
 		cleanMem();
 	} else if (enc) {
 		ENC();
@@ -1084,6 +1082,7 @@ int main(int argc, char const *argv[]) {
 		CLD();
 	}
 
-
+	std::chrono::duration<double> wctduration = std::chrono::system_clock::now() - start;
+	cout<<"Wall clock time = "<<wctduration.count()<<endl;
 	return 0;
 }

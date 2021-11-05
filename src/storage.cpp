@@ -1,7 +1,7 @@
 #include "storage.h"
 #include <bits/stdc++.h>
 
-void add_to_arr(int x, int j, int beta,std::vector<unsigned> &arr){
+void add_to_arr(int x, int j, int beta,std::vector<unsigned> &arr) {
 
     unsigned temp = j*beta;
     unsigned idx = (temp) >> 5;
@@ -24,17 +24,17 @@ void add_to_arr(int x, int j, int beta,std::vector<unsigned> &arr){
 }
 
 
-int extract_from_arr(int j,int beta,std::vector<unsigned> &arr){
+int extract_from_arr(int j,int beta,std::vector<unsigned> &arr) {
     unsigned temp = j*beta;
     unsigned idx = (temp) >> 5;
     unsigned rem=temp&(0x0000001F);
     
-    int res=0;
+    int res = 0;
     
     unsigned add = rem + beta;
 
-    if(add > 32){
-        unsigned  mask=0;
+    if(add > 32) {
+        unsigned mask=0;
         mask = (1 << (32-rem)) - 1;
         int lastXbits = arr[idx] & mask;
         res = (lastXbits << (add-32)) | (arr[idx+1] >> (64-add));       
@@ -45,11 +45,11 @@ int extract_from_arr(int j,int beta,std::vector<unsigned> &arr){
     return res;
 }
 
-std::vector<int> get_orig_arr(int beta,std::vector<unsigned> &arr,int Nelements){
+std::vector<int> get_orig_arr(int beta,std::vector<unsigned> &arr,int Nelements) {
 
     std::vector<int> v;
-    for(int i=0;i<Nelements;i++){
-        int temp = extract_from_arr(i,beta,arr);
+    for(int i = 0; i < Nelements; i++) {
+        int temp = extract_from_arr(i, beta, arr);
         v.push_back(temp);
     }
     return v;

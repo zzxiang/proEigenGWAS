@@ -13,6 +13,7 @@ class genotype {
 	std::vector< std::vector <bool> > lsb;
 	std::vector<int> columnsum;
 	std::vector<double> columnmeans;
+	std::vector<int> columnSqSum;
 	std::vector<std::string> bimInfo;
 
 	public:
@@ -20,6 +21,7 @@ class genotype {
 		unsigned char mask;
     	int wordsize;
 		bool inbred;
+		bool allow_missing;
 		int genosize; //genosize = 3 for outbred, =2 for inbred
 	    unsigned int unitsperword;
     	int unitsize;

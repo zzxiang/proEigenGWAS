@@ -35,11 +35,12 @@ struct options {
 	bool given_seed;
 
 	bool scan; //master-command
-	bool inbred;
+//	bool inbred;
 
 	bool rhe; //master-command (rhe, iter, seed)
 	int rhe_it;
 	bool got_pheno_file;
+	int pheno_num;
 	std::string PHENO_FILE;
 
 	bool cld; //master-command chromosome-wise ld
@@ -73,7 +74,7 @@ void exitWithError(const std::string &error) {
 	exit(EXIT_FAILURE);
 }
 
-class Convert{
+class Convert {
 public:
 	template <typename T>
 	static std::string T_to_string(T const &val){
@@ -230,11 +231,12 @@ void parse_args(int argc, char const *argv[]) {
 	command_line_opts.given_seed = false;
 
 	command_line_opts.scan = false;
-	command_line_opts.inbred = false;
+//	command_line_opts.inbred = false;
 
 	command_line_opts.rhe = false;
 	command_line_opts.rhe_it = 10;
 	command_line_opts.got_pheno_file = false;
+	command_line_opts.pheno_num = 0;
 	command_line_opts.PHENO_FILE = "";
 
 	command_line_opts.propc = false;
@@ -274,12 +276,13 @@ void parse_args(int argc, char const *argv[]) {
 
 		command_line_opts.propc = cfg.getValueOfKey<bool>("propc", false);
 		command_line_opts.scan = cfg.getValueOfKey<bool>("scan", false);
-		command_line_opts.inbred = cfg.getValueOfKey<bool>("inbred", false);
+//		command_line_opts.inbred = cfg.getValueOfKey<bool>("inbred", false);
 
 		command_line_opts.rhe = cfg.getValueOfKey<bool>("rhe", false);
 		command_line_opts.rhe_it = cfg.getValueOfKey<bool>("rhe-it", 10);
 		command_line_opts.got_pheno_file = cfg.keyExists("pheno");
 		command_line_opts.PHENO_FILE = cfg.getValueOfKey<string>("pheno", string(""));
+		command_line_opts.pheno_num = cfg.getValueOfKey<int>("pheno-num", 0);
 		command_line_opts.enc = cfg.getValueOfKey<bool>("enc", false);
 
 		command_line_opts.got_enc_refsnp_file = cfg.keyExists("enc-snp-ref");
@@ -324,6 +327,14 @@ void parse_args(int argc, char const *argv[]) {
 					command_line_opts.PHENO_FILE = string(argv[i+1]);
 					command_line_opts.got_pheno_file = true;
 					i++;
+				} else if (strcmp(argv[i], "-pheno-num") == 0) {
+					command_line_opts.pheno_num = atof(argv[i+1]);
+					if (command_line_opts.pheno_num < 1) {
+						cout << "'pheno-num should be greater than 0"<<endl;
+						exit(-1);
+					}
+					command_line_opts.pheno_num--;
+					i++;
 				} else if (strcmp(argv[i], "enc-snp-ref") == 0) {
 					command_line_opts.ENC_REFSNP_FILE_PATH = string(argv[i+1]);
 					command_line_opts.got_enc_refsnp_file = true;
@@ -345,8 +356,6 @@ void parse_args(int argc, char const *argv[]) {
 					command_line_opts.text_version = true;
 				else if (strcmp(argv[i], "-scan") == 0)
 					command_line_opts.scan = true;
-				else if (strcmp(argv[i], "-inbred") == 0)
-					command_line_opts.inbred = true;
 				else if (strcmp(argv[i], "-rhe") == 0)
 					command_line_opts.rhe = true;
 				else if (strcmp(argv[i], "-propc") == 0)
@@ -375,8 +384,8 @@ void parse_args(int argc, char const *argv[]) {
 				command_line_opts.text_version = true;
 			else if (strcmp(argv[i], "-scan") == 0)
 				command_line_opts.scan = true;
-			else if (strcmp(argv[i], "-inbred") == 0)
-				command_line_opts.inbred = true;
+//			else if (strcmp(argv[i], "-inbred") == 0)
+//				command_line_opts.inbred = true;
 			else if (strcmp(argv[i], "-rhe") == 0)
 				command_line_opts.rhe = true;
 			else if (strcmp(argv[i], "-propc") == 0)

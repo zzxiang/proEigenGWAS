@@ -68,7 +68,7 @@ MatrixXdr c; //(p,k)
 MatrixXdr means; //(p,1)
 MatrixXdr stds; //(p,1)
 MatrixXdr eveP; //(n,k) //projection matrix for EigenGWAS
-std::vector<std::vector<double> > numbers;
+std::vector<std::vector<double> > pheVal;
 options command_line_opts;
 
 bool debug = false;
@@ -250,11 +250,11 @@ void multiply_y_pre_naive_mem(MatrixXdr &op, int Ncol_op, MatrixXdr &res) {
 }
 
 void multiply_y_pre_fast_thread(int begin, int end, MatrixXdr &op, int Ncol_op, double *yint_m, double **y_m, double *partialsums, MatrixXdr &res) {
-	for(int seg_iter = begin; seg_iter < end; seg_iter++) {
+	for (int seg_iter = begin; seg_iter < end; seg_iter++) {
 		mailman::fastmultiply(g.segment_size_hori, g.Nindv, Ncol_op, g.p[seg_iter], op, yint_m, partialsums, y_m);
 		int p_base = seg_iter * g.segment_size_hori;
-		for(int p_iter = p_base; (p_iter < p_base + g.segment_size_hori) && (p_iter < g.Nsnp); p_iter++) {
-			for(int k_iter = 0; k_iter < Ncol_op; k_iter++)
+		for (int p_iter = p_base; (p_iter < p_base + g.segment_size_hori) && (p_iter < g.Nsnp); p_iter++) {
+			for (int k_iter = 0; k_iter < Ncol_op; k_iter++)
 				res(p_iter, k_iter) = y_m [p_iter - p_base][k_iter];
 		}
 	}
@@ -719,43 +719,50 @@ void RHE_read_pheno(string phe_file) {
     std::istringstream buffer(temp);
     std::vector<double> line((std::istream_iterator<double>(buffer)),
                              std::istream_iterator<double>());
-    	numbers.push_back(line);
+    	pheVal.push_back(line);
 	}
 
-	for (auto it = numbers.begin(); it != numbers.end(); it++) {
-		vector<double> n1 = *it;
-		for (auto it1 = n1.begin(); it1 != n1.end(); it1++) {
-			cout << (*it1) << " ";
-		}
-		cout << endl;
-	}
+	// for (auto it = numbers.begin(); it != numbers.end(); it++) {
+	// 	vector<double> n1 = *it;
+	// 	for (auto it1 = n1.begin(); it1 != n1.end(); it1++) {
+	// 		cout << (*it1) << " ";
+	// 	}
+	// 	cout << endl;
+	// }
 }
 
-void RHE_reg(int seed, int iter) {
+void RHE_reg(int seed, int iter, int phe_idx) {
 
 	cout << "Randomized HE (mailman), iteration for " << iter << " times" << endl;
-	clock_t he_begin = clock();
+	clock_t heReg_begin = clock();
+
+	MatrixXdr yval(g.Nindv, 1);
+	int cnt = 0;
+	for (int i = 0; i < yval.rows(); i++) {
+		yval(i, 0) = pheVal[i][phe_idx];
+	}
+	cout<<yval(0, 0)<<" "<<yval(1, 0)<<endl;
 
 	double LB = 0;
-	MatrixXdr Bz(n, iter);
+	MatrixXdr Bz(g.Nindv, iter);
 	srand(seed);
 	std::default_random_engine generator(seed);
 	std::normal_distribution<double> norm_dist(0, 1.0);
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < iter; j++) {
+	for (int i = 0; i < Bz.rows(); i++) {
+		for (int j = 0; j < Bz.cols(); j++) {
 			Bz(i, j) = norm_dist(generator);
 		}
 	}
 
 	//geno_matrix * Bz; //(p x n) * (n x iter) = p x iter
-	MatrixXdr T1(p, iter);
-	cout<<"Here T1=G^T * z"<<endl;
+	MatrixXdr T1(g.Nsnp, iter);
+	cout << "Here T1=G^T * z" << endl;
 	multiply_y_pre(Bz, iter, T1, true);
-	MatrixXdr T1_transpose(iter, p);
+	MatrixXdr T1_transpose(iter, g.Nsnp);
 	T1_transpose = T1.transpose(); //iter X p
 	cout << "Here T1.transpose" << endl;
 
-	MatrixXdr T2(iter, n);
+	MatrixXdr T2(iter, g.Nindv);
 	cout << "Here T2=T1^T * G^T" << endl;
 	cout << T1_transpose.rows() << " " << T1_transpose.cols() << " " << endl;
 	multiply_y_post(T1_transpose, iter, T2, true);
@@ -766,15 +773,15 @@ void RHE_reg(int seed, int iter) {
 		}
 	}
 
-	cout<< "LB " << LB <<endl;
-	LB /= iter * p * p;
-	cout<< "LB2 " << LB <<endl;
-	double me = (LB - n)/(n * n);
-	cout<< "Me " << 1/me <<endl;
-	clock_t he_end = clock();
+	cout << "LB " << LB << endl;
+	LB = LB / (1.0 * iter * g.Nsnp * g.Nsnp);
+	cout << "LB2 " << LB << endl;
+	double me = (LB - g.Nindv) / (1.0 * g.Nindv * g.Nindv);
+	cout << "Me " << 1/me << endl;
+	clock_t heReg_end = clock();
 
-	double he_time = double(he_end - he_begin) / CLOCKS_PER_SEC;
-	cout << "RHE time " << he_time << endl;
+	double heReg_time = double(heReg_end - heReg_begin) / CLOCKS_PER_SEC;
+	cout << "RHE time " << heReg_time << endl;
 }
 
 void ENC() {
@@ -999,7 +1006,7 @@ int main(int argc, char const *argv[]) {
 	propc = command_line_opts.propc;
 
 	scan = command_line_opts.scan;
-	inbred = command_line_opts.inbred;
+//	inbred = command_line_opts.inbred;
 
 	rhe = command_line_opts.rhe;
 	rhe_it = command_line_opts.rhe_it;
@@ -1009,7 +1016,7 @@ int main(int argc, char const *argv[]) {
 	cld = command_line_opts.cld;
 
 //read data--universal step
-	g.set_poptype(inbred);
+//	g.set_poptype(inbred);
 	if (text_version) {
 		if (fast_mode)
 			g.read_txt_mailman(command_line_opts.GENOTYPE_FILE_PATH, missing);
@@ -1049,7 +1056,7 @@ int main(int argc, char const *argv[]) {
 	else
 		srand((unsigned int) time(0));
 
-	if (inbred) cout<< "Inbred mode is switched on." << endl;
+//	if (inbred) cout<< "Inbred mode is switched on." << endl;
 	if (!fast_mode && !memory_efficient) {
 		cout<<"Genotype standardization..."<<endl;
 		geno_matrix.resize(p, n);
@@ -1059,6 +1066,10 @@ int main(int argc, char const *argv[]) {
 	clock_t io_end = clock();
 	double io_time = double(io_end - io_begin) / CLOCKS_PER_SEC;
 	cout<< "IO Time: " << io_time << endl;
+
+	// for (int i = 0; i < 10; i++) {
+	// 	cout<<g.get_col_std(i)<<endl;
+	// }
 
 	if (propc) {
 		setMem(k);
@@ -1070,11 +1081,9 @@ int main(int argc, char const *argv[]) {
 		EigenGWAS(eveP);
 		cleanMem();
 	} else if (rhe) {
-		if (command_line_opts.got_pheno_file) {
-			RHE_read_pheno(command_line_opts.PHENO_FILE);
-		}
+		RHE_read_pheno(command_line_opts.PHENO_FILE);
 		setMem(command_line_opts.rhe_it);
-		RHE_reg(seed, command_line_opts.rhe_it);
+		RHE_reg(seed, command_line_opts.rhe_it, command_line_opts.pheno_num);
 		cleanMem();
 	} else if (enc) {
 		ENC();
@@ -1083,6 +1092,6 @@ int main(int argc, char const *argv[]) {
 	}
 
 	std::chrono::duration<double> wctduration = std::chrono::system_clock::now() - start;
-	cout<<"Wall clock time = "<<wctduration.count()<<endl;
+	cout << "Wall clock time = " << wctduration.count() << endl;
 	return 0;
 }

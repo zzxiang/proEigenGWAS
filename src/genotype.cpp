@@ -276,9 +276,9 @@ int genotype::countlines(string filename) {
 	return j;
 }
 
-void genotype::set_poptype(bool isInbred) {
-	this->inbred = isInbred;
-}
+//void genotype::set_poptype(bool isInbred) {
+//	this->inbred = isInbred;
+//}
 
 void genotype::set_metadata() { 
 	wordsize = sizeof(char) * 8;
@@ -305,7 +305,6 @@ void genotype::read_bed_mailman(string filename, bool allow_missing) {
 //	segment_size_hori = ceil(log(Nindv) / log(genosize));
 	segment_size_hori = floor(log(Nindv) / log(genosize)) - 2;
 	Nsegments_hori = ceil((Nsnp * 1.0) / (segment_size_hori * 1.0));
-	cout << segment_size_hori << " " << Nsegments_hori <<endl;
 	p.resize(Nsegments_hori, std::vector<int>(Nindv));
 
 	if (allow_missing) {
@@ -442,8 +441,8 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 					not_O_i[i].push_back(j);
 					not_O_j[j].push_back(i);
 				}
-				val-- ; 
-				val =  (val < 0 ) ? 0 :val ;
+				val--;
+				val = (val < 0 ) ? 0 : val;
 				sum += val;
 				SqSum += val * val;
 				if (val == 0) {
@@ -457,7 +456,7 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 					msb[i][j] = true;
 				} else {
 					cout << "Invalid entry in Genotype Matrix" << endl;
-					exit(-1);			
+					exit(-1);
 				}
 			}
     	}
@@ -523,8 +522,8 @@ double genotype::get_col_std(int snpindex) {
 		return 1.0;
 	double cnt = allow_missing ? (1.0 * (Nindv - (int) not_O_i[snpindex].size())) : (1.0 * Nindv);
 	double std = sqrt((columnSqSum[snpindex] - columnmeans[snpindex] * columnmeans[snpindex] * cnt) / (cnt - 1));
-//	double std = inbred ? sqrt(4 * p_i * (1 - p_i)) : sqrt(2 * p_i * (1 - p_i));
-//	cout << std0 << " " << std <<endl;
+//	double std0 = inbred ? sqrt(4 * p_i * (1 - p_i)) : sqrt(2 * p_i * (1 - p_i));
+//	cout << std << " " << std0 << endl;
 	return std;
 }
 

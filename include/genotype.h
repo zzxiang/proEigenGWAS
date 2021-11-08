@@ -20,7 +20,7 @@ class genotype {
 
 		unsigned char mask;
     	int wordsize;
-		bool inbred;
+//		bool inbred;
 		bool allow_missing;
 		int genosize; //genosize = 3 for outbred, =2 for inbred
 	    unsigned int unitsperword;

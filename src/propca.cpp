@@ -784,8 +784,37 @@ void RHE_reg(int seed, int iter, int phe_idx) {
 	cout << "RHE time " << heReg_time << endl;
 }
 
-void ENC() {
+void ENC(int seed, int kval) {
+	cout << "ENC generates " << kval << " tags for " << g.Nindv <<" samples" <<endl;
+	clock_t ENC_begin = clock();
 
+	srand(seed);
+	std::default_random_engine generator(seed);
+	std::normal_distribution<double> norm_dist(0, 1.0);
+
+	MatrixXdr Bz(kval, g.Nsnp);
+	for (int i = 0; i < Bz.rows(); i++)
+		for (int j = 0; j < Bz.cols(); j++)
+			Bz(i, j) = norm_dist(generator);
+
+	MatrixXdr encG(kval, g.Nindv);
+	multiply_y_post(Bz, kval, encG, true);
+
+	ofstream e_file;
+	e_file.open((string(command_line_opts.OUTPUT_PATH) + string(".enc.txt")).c_str());
+	for (int i = 0; i < encG.cols(); i++) {
+		for (int j = 0; j < encG.rows(); j++) {
+			e_file<<encG(j, i);
+			if (j != (encG.rows() - 1)) e_file << " ";
+		}
+		e_file << endl;
+	}
+
+	e_file.close();
+	clock_t ENC_end = clock();
+	double ENC_time = double(ENC_end - ENC_begin) / CLOCKS_PER_SEC;
+	cout<< "Save encG to " <<(string(command_line_opts.OUTPUT_PATH) + string(".enc.txt")).c_str() <<endl;
+	cout << "ENC time " << ENC_time << endl;
 }
 
 void CLD() {
@@ -1067,10 +1096,6 @@ int main(int argc, char const *argv[]) {
 	double io_time = double(io_end - io_begin) / CLOCKS_PER_SEC;
 	cout<< "IO Time: " << io_time << endl;
 
-	// for (int i = 0; i < 10; i++) {
-	// 	cout<<g.get_col_std(i)<<endl;
-	// }
-
 	if (propc) {
 		setMem(k);
 		ProPC();
@@ -1086,7 +1111,9 @@ int main(int argc, char const *argv[]) {
 		RHE_reg(seed, command_line_opts.rhe_it, command_line_opts.pheno_num);
 		cleanMem();
 	} else if (enc) {
-		ENC();
+		setMem(command_line_opts.enc_kval);
+		ENC(seed, command_line_opts.enc_kval);
+		cleanMem();
 	} else if (cld) {
 		CLD();
 	}

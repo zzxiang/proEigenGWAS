@@ -97,8 +97,9 @@ You can run the code using the command:
 The equivalent command to issue for running the same code from the examples directory is:
 
 ```
-../build/proEG -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -nfm -scan
-../build/proEG -g Arab295Line -k 5 -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -nfm -scan -inbred
+../build/proEG -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -scan
+../build/proEG -g Arab295Line -k 5 -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -scan
+../build/proEG -g Arab295Line -k 5 -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -enc -enc-k 100 -seed 200
 ```
 
 proEG wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.

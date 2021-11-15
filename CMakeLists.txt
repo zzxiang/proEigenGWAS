@@ -9,7 +9,7 @@ project(proEigenGWAS)
 include_directories(include)
 #cmake include boost
 find_package(Boost 1.72.0 COMPONENTS program_options REQUIRED)
-
+find_package (Eigen3 3 REQUIRED NO_MODULE)
 
 IF (NOT DEFINED SSE_SUPPORT)
     SET(SSE_SUPPORT 0)
@@ -23,3 +23,4 @@ ADD_DEFINITIONS(-DDEBUG=${DEBUG})
 
 add_executable(proEG src/propca.cpp src/genotype.cpp src/storage.cpp)
 target_include_directories(proEG PRIVATE ${Boost_INCLUDE_DIRS})
+target_link_libraries(proEG ${Boost_LIBRARIES} Eigen3::Eigen)

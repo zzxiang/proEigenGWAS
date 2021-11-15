@@ -67,7 +67,6 @@ The values in the brackets are the command line flags for running the code witho
 
 ```
 * genotype (-g) : The path of the genotype file or plink bed file prefix
-* num_evec (-k) : The number of eigen vectors to output (default: 5)
 * l (-l) : The extra calculation to be performed so that k_effective  = k + l (default: num_evec)
 * max_iterations (-m) : The maximum number of iterations to run the EM for (default: num_evec + 2)
 * debug (-v) : Enabling debug mode to output various debug informations (default: false). Need to build with DEBUG=1 as described above for this flag to work.
@@ -97,9 +96,9 @@ You can run the code using the command:
 The equivalent command to issue for running the same code from the examples directory is:
 
 ```
-../build/proEG -g example -k 5 -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -scan
-../build/proEG -g Arab295Line -k 5 -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -scan
-../build/proEG -g Arab295Line -k 5 -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -enc -enc-k 100 -seed 200
+../build/proEG -g example -l 2 -m 20 -a -cl 0.001 -o example_ -aem 1 -vn -scan
+../build/proEG -g Arab295Line -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -scan
+../build/proEG -g Arab295Line -l 2 -m 5 -a -cl 0.001 -o Arab295Line -aem 1 -vn -enc -enc-k 100 -seed 200
 ```
 
 proEG wil generate three files containing the eigenvectors/principal components, projections, and eigenvalues.

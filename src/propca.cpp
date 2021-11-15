@@ -1073,7 +1073,7 @@ int main(int argc, char const *argv[]) {
 		exit(-1);
 	}
 
-	k = k_orig + command_line_opts.l;
+	k = command_line_opts.l;
 	k = (int) ceil(k/10.0) * 10;
 //	command_line_opts.l = k - k_orig;
 	p = g.Nsnp;

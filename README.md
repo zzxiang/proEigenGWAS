@@ -121,6 +121,8 @@ Make sure to set the text_version to false in the parameter file, or don't use t
 ## Built With
 
 * [Eigen](http://eigen.tuxfamily.org/) - The Linear algebra library for C++
+* [Boost](http://boost.org) - Boost library for C++.
+In addition, both eigen and boost should be installed first, and the cmake will automatically find the both libraries. Of note, some of Boost's library should be built first.
 
 ## Authors
 

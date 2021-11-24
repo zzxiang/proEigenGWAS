@@ -34,7 +34,7 @@ namespace mailman {
 		for (int j = 0; j < m; j++) {
 			d = d/3;
 			for (int l = 0; l < k; l++)
-				c [l] = 0 ; 
+				c [l] = 0;
 			for (int i = 0; i < d; i++) {
 				for (int l = 0; l < k; l++) {
 					double z1 = yint[l + (i + d) * k];
@@ -71,7 +71,7 @@ namespace mailman {
 		int size1 = pow(3., m);
 		memset (yint, 0, size1 * sizeof(double));
 
-		int prefix = 1 ;
+		int prefix = 1;
 		for (int i = m - 1; i >= 0; i--) { 
 			int i1 = start + i;
 			for (int j = 0; j < prefix; j++) {

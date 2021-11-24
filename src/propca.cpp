@@ -18,9 +18,10 @@
 
 #include "genotype.h"
 #include "mailman.h"
-#include "arguments.h"
+//#include "arguments.h"
 #include "helper.h"
 #include "storage.h"
+#include "Goptions.hpp"
 
 #if SSE_SUPPORT==1
 	#define fastmultiply fastmultiply_sse
@@ -69,7 +70,9 @@ MatrixXdr means; //(p,1)
 MatrixXdr stds; //(p,1)
 MatrixXdr eveP; //(n,k) //projection matrix for EigenGWAS
 std::vector<std::vector<double> > pheVal;
-options command_line_opts;
+
+//options command_line_opts;
+Goptions goptions;
 
 bool debug = false;
 bool check_accuracy = false;
@@ -84,15 +87,13 @@ int nthreads = 1;
 
 bool propc = false;
 
-bool given_seed = false;
 int seed;
 
-bool scan = false;
+bool eigengwas = false;
 bool inbred = false;
 
 bool rhe = false;
 int rhe_it = 10;
-bool got_pheno_file = false;
 string phe_File = "";
 
 bool enc = false;
@@ -519,13 +520,14 @@ MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
 			D = D + (c_orig.row(idx).transpose() * c_orig.row(idx));
 			M_to_remove = M_to_remove + (c_orig.row(idx).transpose() * g.get_col_mean(idx));
 		}
-		mu.col(j) = (c_temp-D).inverse() * (T.col(j) - M_temp + M_to_remove);
+		mu.col(j) = (c_temp - D).inverse() * (T.col(j) - M_temp + M_to_remove);
 	}
 
 	#if DEBUG == 1
 		if(debug){
 			ofstream x_file;
-			x_file.open((string(command_line_opts.OUTPUT_PATH)+string("x_in_fn_vals.txt")).c_str());
+//			x_file.open((string(command_line_opts.OUTPUT_PATH)+string("x_in_fn_vals.txt")).c_str());
+			x_file.open((goptions.GetGenericOutFile() + string("x_in_fn_vals.txt")).c_str());
 			x_file<<std::setprecision(15)<<mu<<endl;
 			x_file.close();
 		}
@@ -617,29 +619,29 @@ void print_vals() {
 	v_k = v_l.leftCols(k_orig);
 
 	ofstream evec_file;
-	evec_file.open((string(command_line_opts.OUTPUT_PATH) + string("evecs.txt")).c_str());
+	evec_file.open((goptions.GetGenericOutFile() + string("evecs.txt")).c_str());
 	evec_file << std::setprecision(15) << Q * u_k << endl;
 	evec_file.close();
 	ofstream eval_file;
-	eval_file.open((string(command_line_opts.OUTPUT_PATH) + string("evals.txt")).c_str());
+	eval_file.open((goptions.GetGenericOutFile() + string("evals.txt")).c_str());
 	for(int kk = 0; kk < k_orig; kk++)
 		eval_file << std::setprecision(15) << (b_svd.singularValues())(kk) * (b_svd.singularValues())(kk)/g.Nsnp<<endl;
 	eval_file.close();
 
 	eveP = v_l.leftCols(k_orig);
 	ofstream proj_file;
-	proj_file.open((string(command_line_opts.OUTPUT_PATH) + string("projections.txt")).c_str());
+	proj_file.open((goptions.GetGenericOutFile() + string("projections.txt")).c_str());
 	proj_file << std::setprecision(15)<< v_k << endl;
 	proj_file.close();
 
 	if (debug) {
 		ofstream c_file;
-		c_file.open((string(command_line_opts.OUTPUT_PATH)+string("cvals.txt")).c_str());
+		c_file.open((goptions.GetGenericOutFile()+string("cvals.txt")).c_str());
 		c_file<<std::setprecision(15)<<c<<endl;
 		c_file.close();
 
 		ofstream means_file;
-		means_file.open((string(command_line_opts.OUTPUT_PATH)+string("means.txt")).c_str());
+		means_file.open((goptions.GetGenericOutFile()+string("means.txt")).c_str());
 		means_file<<std::setprecision(15)<<means<<endl;
 		means_file.close();
 
@@ -649,7 +651,7 @@ void print_vals() {
 		MatrixXdr x_k;
 		x_k = d_k * (v_k.transpose());
 		ofstream x_file;
-		x_file.open((string(command_line_opts.OUTPUT_PATH) + string("xvals.txt")).c_str());
+		x_file.open((goptions.GetGenericOutFile() + string("xvals.txt")).c_str());
 		x_file<<std::setprecision(15)<<x_k.transpose()<<endl;
 		x_file.close();
 	}
@@ -694,7 +696,7 @@ void EigenGWAS(MatrixXdr IndEigenVec) {
 	for (int i = 0; i < EgBeta.cols(); i++) {
 		cout << "Scanning eigenvector " << i + 1 << endl;
 		ofstream e_file;
-		e_file.open((string(command_line_opts.OUTPUT_PATH) + string("eg."+std::to_string(i+1)+".txt")).c_str());
+		e_file.open((goptions.GetGenericOutFile() + string("eg."+std::to_string(i+1)+".txt")).c_str());
 		e_file << "CHR\tSNP\tPOS\tBP\tA1\tA2\tBeta\tSE\tT-stat\tP" << endl;
 		for (int j = 0; j <EgBeta.rows(); j++) {
 			double seB = sqrt((1 - pow(EgBeta(j, i), 2))/(g.Nindv - 1));
@@ -801,7 +803,7 @@ void ENC(int seed, int kval) {
 	multiply_y_post(Bz, kval, encG, true);
 
 	ofstream e_file;
-	e_file.open((string(command_line_opts.OUTPUT_PATH) + string(".enc.txt")).c_str());
+	e_file.open((goptions.GetGenericOutFile() + string(".enc.txt")).c_str());
 	for (int i = 0; i < encG.cols(); i++) {
 		for (int j = 0; j < encG.rows(); j++) {
 			e_file<<encG(j, i);
@@ -813,7 +815,7 @@ void ENC(int seed, int kval) {
 	e_file.close();
 	clock_t ENC_end = clock();
 	double ENC_time = double(ENC_end - ENC_begin) / CLOCKS_PER_SEC;
-	cout<< "Save encG to " <<(string(command_line_opts.OUTPUT_PATH) + string(".enc.txt")).c_str() <<endl;
+	cout<< "Save encG to " <<(goptions.GetGenericOutFile() + string(".enc.txt")).c_str() <<endl;
 	cout << "ENC time " << ENC_time << endl;
 }
 
@@ -917,7 +919,8 @@ void ProPC() {
 
 	ofstream c_file;
 	if (debug) {
-		c_file.open((string(command_line_opts.OUTPUT_PATH) + string("cvals_orig.txt")).c_str());
+		// c_file.open((string(command_line_opts.OUTPUT_PATH) + string("cvals_orig.txt")).c_str());
+		c_file.open((goptions.GetGenericOutFile() + string("cvals_orig.txt")).c_str());
 		c_file << std::setprecision(15) << c << endl;
 		c_file.close();
 		printf("Read Matrix\n");
@@ -1009,51 +1012,81 @@ void ProPC() {
 }
 
 int main(int argc, char const *argv[]) {
+	try {
+    	goptions.ParseOptions(argc, argv);
+//      PrintOptions(goptions);
+	}
+	catch (OptionsExitsProgram){}
 
 	auto start = std::chrono::system_clock::now();
 	clock_t io_begin = clock();
     clock_gettime(CLOCK_REALTIME, &t0);
 
-	parse_args(argc, argv);
+	// parse_args(argc, argv);
 
 	//TODO: Memory Effecient Version of Mailman
 
-	memory_efficient = command_line_opts.memory_efficient;
-	text_version = command_line_opts.text_version;
-    fast_mode = command_line_opts.fast_mode;
-	missing = command_line_opts.missing;
-    MAX_ITER = command_line_opts.max_iterations;
-	k_orig = command_line_opts.l;
-	debug = command_line_opts.debugmode;
-	check_accuracy = command_line_opts.getaccuracy;
-	var_normalize = command_line_opts.var_normalize;
-	accelerated_em = command_line_opts.accelerated_em;
-	nthreads = command_line_opts.nthreads;
-	given_seed = command_line_opts.given_seed;
-	seed = given_seed ? std::abs(command_line_opts.seed) : (unsigned int) time(0);
+//	memory_efficient = command_line_opts.memory_efficient;
+	memory_efficient = goptions.IsGenericMemoryEfficient();
+//	text_version = command_line_opts.text_version;
+	text_version = goptions.IsGenericTextMode();
+//  fast_mode = command_line_opts.fast_mode;
+	fast_mode = goptions.IsGenericNoMailman();
+//	missing = command_line_opts.missing;
+	missing = goptions.IsGenericMissing();
+//	debug = command_line_opts.debugmode;
+	debug = goptions.IsGenericDebug();
+//	nthreads = command_line_opts.nthreads;
+	nthreads = goptions.GetGenericThreads();
 
-	propc = command_line_opts.propc;
+//	k_orig = command_line_opts.l;
+	k_orig = goptions.GetGenericEigenvecNumber();
+//	check_accuracy = command_line_opts.getaccuracy;
+	check_accuracy = goptions.GetPropcAccuracy();
+//	var_normalize = command_line_opts.var_normalize;
+	var_normalize = goptions.IsGenericVarNorm();
 
-	scan = command_line_opts.scan;
-//	inbred = command_line_opts.inbred;
+//  MAX_ITER = command_line_opts.max_iterations;
+	MAX_ITER = goptions.GetPropcMaxIteration();
+//	accelerated_em = command_line_opts.accelerated_em;
+	accelerated_em = goptions.GetPropcAcceleratedEM();
+	seed = goptions.GetGenericSeed();
 
-	rhe = command_line_opts.rhe;
-	rhe_it = command_line_opts.rhe_it;
-	got_pheno_file = command_line_opts.got_pheno_file;
+//	convergence_limit = command_line_opts.convergence_limit;
+	convergence_limit = goptions.GetPropcConvergenceLimit();
 
-	enc = command_line_opts.enc;
-	cld = command_line_opts.cld;
+//	propc = command_line_opts.propc;
+	propc = goptions.CheckPropcMasterOption();
+
+//	eigengwas = command_line_opts.scan;
+	eigengwas = goptions.CheckEigenGWASMasterOption();
+
+//	rhe_it = command_line_opts.rhe_it;
+	rhe_it = goptions.GetGenericIteration();
+
+//	rhe = command_line_opts.rhe;
+	rhe = goptions.CheckRandHEMasterOption();
+
+//	enc = command_line_opts.enc;
+	enc = goptions.CheckEncMasterOption();
+
+//	cld = command_line_opts.cld;
+	cld = goptions.CheckCLDMasterOption();
+
 
 //read data--universal step
 //	g.set_poptype(inbred);
 	if (text_version) {
 		if (fast_mode)
-			g.read_txt_mailman(command_line_opts.GENOTYPE_FILE_PATH, missing);
+			// g.read_txt_mailman(command_line_opts.GENOTYPE_FILE_PATH, missing);
+			g.read_txt_mailman(goptions.GetGenericGenoFile(), missing);
 		else
-			g.read_txt_naive(command_line_opts.GENOTYPE_FILE_PATH, missing);
+			// g.read_txt_naive(command_line_opts.GENOTYPE_FILE_PATH, missing);
+			g.read_txt_naive(goptions.GetGenericGenoFile(), missing);
 	} else {
 		clock_t plink_read_begin = clock();
-		g.read_plink(command_line_opts.GENOTYPE_FILE_PATH, missing, fast_mode);
+		// g.read_plink(command_line_opts.GENOTYPE_FILE_PATH, missing, fast_mode);
+		g.read_plink(goptions.GetGenericGenoFile(), missing, fast_mode);
 		clock_t plink_read_end = clock();
 		double plink_io_time = double(plink_read_end - plink_read_begin) / CLOCKS_PER_SEC;
 		cout << "Reading plink data in " << plink_io_time << "s" <<endl;
@@ -1073,17 +1106,14 @@ int main(int argc, char const *argv[]) {
 		exit(-1);
 	}
 
-	k = command_line_opts.l;
+//	k = command_line_opts.l;
+	k = goptions.GetGenericEigenvecNumber();
 	k = (int) ceil(k/10.0) * 10;
 //	command_line_opts.l = k - k_orig;
 	p = g.Nsnp;
 	n = g.Nindv;
-	convergence_limit = command_line_opts.convergence_limit;
 
-	if (command_line_opts.given_seed)
-		srand(command_line_opts.seed);
-	else
-		srand((unsigned int) time(0));
+	srand(seed);
 
 //	if (inbred) cout<< "Inbred mode is switched on." << endl;
 	if (!fast_mode && !memory_efficient) {
@@ -1100,21 +1130,29 @@ int main(int argc, char const *argv[]) {
 		setMem(k);
 		ProPC();
 		cleanMem();
-	} else if (scan) {
+	} else if (eigengwas) {
 		setMem(k);
 		ProPC();
 		EigenGWAS(eveP);
 		cleanMem();
 	} else if (rhe) {
-		RHE_read_pheno(command_line_opts.PHENO_FILE);
-		setMem(command_line_opts.rhe_it);
-		RHE_reg(seed, command_line_opts.rhe_it, command_line_opts.pheno_num);
+//		RHE_read_pheno(command_line_opts.PHENO_FILE);
+//		setMem(command_line_opts.rhe_it);
+//		RHE_reg(seed, command_line_opts.rhe_it, command_line_opts.pheno_num);
+		RHE_read_pheno(goptions.GetGenericPhenoFile());
+		setMem(goptions.GetGenericIteration());
+		RHE_reg(seed, goptions.GetGenericIteration(), goptions.GetGenericPhenoNum()[0]);
 		cleanMem();
-	} else if (enc) {
-		setMem(command_line_opts.enc_kval);
-		ENC(seed, command_line_opts.enc_kval);
+	} else if (goptions.CheckEncMasterOption()) {
+		setMem(goptions.GetEncK());
+		ENC(seed, goptions.GetEncK());
 		cleanMem();
-	} else if (cld) {
+//	}
+//	else if (enc) {
+//		setMem(command_line_opts.enc_kval);
+//		ENC(seed, command_line_opts.enc_kval);
+//		cleanMem();
+	} else if (goptions.CheckCLDMasterOption()) {
 		CLD();
 	}
 

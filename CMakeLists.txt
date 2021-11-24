@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8.12)
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_CXX_FLAGS "-std=c++0x -O3 -pthread")
+set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_BUILD_TYPE "Debug")
 
 project(proEigenGWAS)
@@ -9,7 +10,7 @@ project(proEigenGWAS)
 include_directories(include)
 #cmake include boost
 find_package(Boost 1.72.0 COMPONENTS program_options REQUIRED)
-find_package (Eigen3 3 REQUIRED NO_MODULE)
+find_package(Eigen3 3 REQUIRED NO_MODULE)
 
 IF (NOT DEFINED SSE_SUPPORT)
     SET(SSE_SUPPORT 0)

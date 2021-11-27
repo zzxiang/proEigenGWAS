@@ -159,7 +159,6 @@ public:
 
 //rand-he
    bool CheckRandHEMasterOption() {
-      cout<<"rand-he"<<endl;
       return results["rand-he"].as<bool>();
    }
 

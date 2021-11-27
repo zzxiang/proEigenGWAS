@@ -1,6 +1,5 @@
 /*
 !/example/
-/include/boost/
 /examples/example_evals.txt
 /examples/example_evecs.tx
 /examples/example_eg.1.txt
@@ -19,7 +18,6 @@
 !examples/Arab295Line_projections.txt
 !/.git
 !/.gitignore
-!/include/Eigen/
 !LICENSE
 !README.md
 !/src

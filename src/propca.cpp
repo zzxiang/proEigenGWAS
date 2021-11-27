@@ -61,10 +61,6 @@ struct timespec t0;
 genotype g;
 MatrixXdr geno_matrix; //(p,n)
 
-int MAX_ITER;
-int k, p, n; //p = Nsnp, n = Nind
-int k_orig;
-
 MatrixXdr c; //(p,k)
 MatrixXdr means; //(p,1)
 MatrixXdr stds; //(p,1)
@@ -74,6 +70,9 @@ std::vector<std::vector<double> > pheVal;
 //options command_line_opts;
 Goptions goptions;
 
+int MAX_ITER;
+int k, p, n; //p = Nsnp, n = Nind
+int k_orig;
 bool debug = false;
 bool check_accuracy = false;
 bool var_normalize = false;
@@ -84,20 +83,20 @@ bool missing = false;
 bool fast_mode = true;
 bool text_version = false;
 int nthreads = 1;
+int seed;
 
 bool propc = false;
-
-int seed;
 
 bool eigengwas = false;
 bool inbred = false;
 
 bool rhe = false;
 int rhe_it = 10;
-string phe_File = "";
 
 bool enc = false;
 bool cld = false;
+string phe_File = "";
+
 
 //X*y
 
@@ -274,7 +273,7 @@ void multiply_y_pre_fast_thread(int begin, int end, MatrixXdr &op, int Ncol_op, 
  */
 void multiply_y_pre_fast(MatrixXdr &op, int Ncol_op, MatrixXdr &res, bool subtract_means) {
 
-	for(int k_iter = 0; k_iter < Ncol_op; k_iter++) {
+	for (int k_iter = 0; k_iter < Ncol_op; k_iter++) {
 		sum_op[k_iter] = op.col(k_iter).sum();
 	}
 
@@ -319,7 +318,7 @@ void multiply_y_pre_fast(MatrixXdr &op, int Ncol_op, MatrixXdr &res, bool subtra
 	}
 */
 
-	int last_seg_size = (g.Nsnp % g.segment_size_hori !=0 ) ? g.Nsnp % g.segment_size_hori : g.segment_size_hori;
+	int last_seg_size = (g.Nsnp % g.segment_size_hori !=0) ? g.Nsnp % g.segment_size_hori : g.segment_size_hori;
 	mailman::fastmultiply(last_seg_size, g.Nindv, Ncol_op, g.p[g.Nsegments_hori-1], op, yint_m[0], partialsums[0], y_m[0]);		
 	int p_base = (g.Nsegments_hori - 1) * g.segment_size_hori;
 	for (int p_iter = p_base; (p_iter < p_base + g.segment_size_hori) && (p_iter < g.Nsnp); p_iter++) {
@@ -499,16 +498,16 @@ MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
 	MatrixXdr mu(k, n);
 
 	// E step
-	MatrixXdr c_temp(k,k);
+	MatrixXdr c_temp(k, k);
 	c_temp = c_orig.transpose() * c_orig;
 
-	MatrixXdr T(k,n);
+	MatrixXdr T(k, n);
 	MatrixXdr c_fn;
 	c_fn = c_orig.transpose();
 	multiply_y_post(c_fn, k, T, false);
 
-	MatrixXdr M_temp(k,1);
-	M_temp = c_orig.transpose() *  means;
+	MatrixXdr M_temp(k, 1);
+	M_temp = c_orig.transpose() * means;
 
 	for (int j = 0; j < n; j++) {
 		MatrixXdr D(k, k);
@@ -544,12 +543,12 @@ MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
 	mu_sum = MatrixXdr::Zero(k, 1);
 	mu_sum = mu.rowwise().sum();
 
-	for(int i = 0; i < p; i++){
+	for (int i = 0; i < p; i++) {
 		MatrixXdr D(k, k);
 		MatrixXdr mu_to_remove(k, 1);
 		D = MatrixXdr::Zero(k, k);
 		mu_to_remove = MatrixXdr::Zero(k, 1);
-		for(int j = 0; j < g.not_O_i[i].size(); j++){
+		for (int j = 0; j < g.not_O_i[i].size(); j++) {
 			int idx = g.not_O_i[i][j];
 			D = D + (mu.col(idx) * mu.col(idx).transpose());
 			mu_to_remove = mu_to_remove + (mu.col(idx));
@@ -557,7 +556,7 @@ MatrixXdr run_EM_missing(MatrixXdr &c_orig) {
 		c_new.row(i) = (((mu_temp-D).inverse()) * (T1.row(i).transpose() - (g.get_col_mean(i) * (mu_sum-mu_to_remove)))).transpose();
 		double mean;
 		mean = g.get_col_sum(i);
-		mean = mean -  (c_orig.row(i)*(mu_sum-mu_to_remove))(0, 0);
+		mean = mean -  (c_orig.row(i) * (mu_sum-mu_to_remove))(0, 0);
 		mean = mean * 1.0 / (n-g.not_O_i[i].size());
 		g.update_col_mean(i, mean);
 	}
@@ -637,22 +636,22 @@ void print_vals() {
 	if (debug) {
 		ofstream c_file;
 		c_file.open((goptions.GetGenericOutFile()+string("cvals.txt")).c_str());
-		c_file<<std::setprecision(15)<<c<<endl;
+		c_file << std::setprecision(15) << c << endl;
 		c_file.close();
 
 		ofstream means_file;
 		means_file.open((goptions.GetGenericOutFile()+string("means.txt")).c_str());
-		means_file<<std::setprecision(15)<<means<<endl;
+		means_file << std::setprecision(15) << means << endl;
 		means_file.close();
 
 		d_k = MatrixXdr::Zero(k_orig, k_orig);
-		for(int kk =0 ; kk < k_orig ; kk++)
+		for (int kk =0; kk < k_orig; kk++)
 			d_k(kk,kk)  =(b_svd.singularValues())(kk);
 		MatrixXdr x_k;
 		x_k = d_k * (v_k.transpose());
 		ofstream x_file;
 		x_file.open((goptions.GetGenericOutFile() + string("xvals.txt")).c_str());
-		x_file<<std::setprecision(15)<<x_k.transpose()<<endl;
+		x_file << std::setprecision(15) << x_k.transpose() << endl;
 		x_file.close();
 	}
 }
@@ -994,21 +993,21 @@ void ProPC() {
 					break;
 				}
 				prev_error = e;
-			}
-			if (debug) {
-				print_time();
-				cout<< "*********** End epoch " << i << "***********" << endl;
-			}
 		}
+		if (debug) {
+				print_time();
+				cout << "*********** End epoch " << i << "***********" << endl;
+		}
+	}
 
-		clock_t it_end = clock();
+	clock_t it_end = clock();
 
-	    print_vals();
+	print_vals();
 
-		clock_t pc_end = clock();
-		double avg_it_time = double(it_end - it_begin) / (MAX_ITER * 1.0 * CLOCKS_PER_SEC);
-		double total_time = double(pc_end - pc_begin) / CLOCKS_PER_SEC;
-		cout << "\nAVG Iteration Time: " << avg_it_time << "\nTotal runtime: " << total_time << endl;
+	clock_t pc_end = clock();
+	double avg_it_time = double(it_end - it_begin) / (MAX_ITER * 1.0 * CLOCKS_PER_SEC);
+	double total_time = double(pc_end - pc_begin) / CLOCKS_PER_SEC;
+	cout << "\nAVG Iteration Time: " << avg_it_time << "\nTotal runtime: " << total_time << endl;
 }
 
 int main(int argc, char const *argv[]) {
@@ -1054,6 +1053,9 @@ int main(int argc, char const *argv[]) {
 
 //	convergence_limit = command_line_opts.convergence_limit;
 	convergence_limit = goptions.GetPropcConvergenceLimit();
+
+//	k = command_line_opts.l;
+	k = (int) ceil(goptions.GetGenericEigenvecNumber()/10.0) * 10;
 
 //	propc = command_line_opts.propc;
 	propc = goptions.CheckPropcMasterOption();
@@ -1106,9 +1108,6 @@ int main(int argc, char const *argv[]) {
 		exit(-1);
 	}
 
-//	k = command_line_opts.l;
-	k = goptions.GetGenericEigenvecNumber();
-	k = (int) ceil(k/10.0) * 10;
 //	command_line_opts.l = k - k_orig;
 	p = g.Nsnp;
 	n = g.Nindv;

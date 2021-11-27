@@ -1042,7 +1042,7 @@ int main(int argc, char const *argv[]) {
 //	k_orig = command_line_opts.l;
 	k_orig = goptions.GetGenericEigenvecNumber();
 //	check_accuracy = command_line_opts.getaccuracy;
-	check_accuracy = goptions.GetPropcAccuracy();
+	check_accuracy = goptions.IsPropcAccuracy();
 //	var_normalize = command_line_opts.var_normalize;
 	var_normalize = goptions.IsGenericVarNorm();
 

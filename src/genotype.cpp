@@ -1,6 +1,8 @@
 #include <bits/stdc++.h>
 #include "genotype.h"
 #include "storage.h"
+#include "time.h"
+#include "Goptions.hpp"
 
 using namespace std;
 
@@ -78,6 +80,30 @@ int simulate_geno_from_random(float p_j) {
 		return 1;
 	else
 		return 2;
+}
+
+void genotype::read_geno(string geno_file, bool text_version, bool fast_mode, bool missing, bool mem_efficient, bool var_norm) {
+	allow_missing = missing;
+	memory_efficient = mem_efficient;
+	if (text_version) {
+		if (fast_mode)
+			// g.read_txt_mailman(command_line_opts.GENOTYPE_FILE_PATH, missing);
+			read_txt_mailman(geno_file, missing);
+		else
+			// g.read_txt_naive(command_line_opts.GENOTYPE_FILE_PATH, missing);
+			read_txt_naive(geno_file, missing);
+		if (!fast_mode && !mem_efficient) {
+			geno_matrix.resize(Nindv, Nsnp);
+			generate_eigen_geno();
+		}
+	} else {
+		clock_t plink_read_begin = clock();
+		// g.read_plink(command_line_opts.GENOTYPE_FILE_PATH, missing, fast_mode);
+		read_plink(geno_file, missing, fast_mode);
+		clock_t plink_read_end = clock();
+		double plink_io_time = double(plink_read_end - plink_read_begin) / CLOCKS_PER_SEC;
+		cout << "Reading plink data in " << plink_io_time << "s" <<endl;
+	}
 }
 
 // Functions to read text files
@@ -467,6 +493,7 @@ void genotype::read_bed_naive(string filename, bool allow_missing) {
 	delete[] gtype;
 }
 
+
 void genotype::read_bed(string filename, bool allow_missing, bool mailman_mode) {
 	if (mailman_mode) {
 		cout<< "Read plink bed data in mailman mode..." <<endl;
@@ -492,7 +519,7 @@ void genotype::read_plink(std::string filenameprefix, bool allow_missing, bool m
 
 	std::stringstream f3;
 	f3 << filenameprefix << ".bed";
-	read_bed (f3.str(), allow_missing, mailman_mode);
+	read_bed(f3.str(), allow_missing, mailman_mode);
 }
 
 // Accessor Functions
@@ -527,7 +554,24 @@ double genotype::get_col_std(int snpindex) {
 	return std;
 }
 
-void genotype::generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize) {
+void genotype::generate_eigen_geno() {
+//void genotype::generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize) {
+	for (int i = 0; i < Nsnp; i++) {
+		for (int j = 0; j < Nindv; j++) {
+			double m = msb[i][j];
+			double l = lsb[i][j];
+			double geno = (m * 2.0 + l) - get_col_mean(i);
+			if (var_normalize)
+				geno_matrix(i, j) = geno / get_col_std(i);
+			else
+				geno_matrix(i, j) = geno;
+		}
+	}
+}
+
+
+void genotype::generate_eigen_geno(MatrixXdr &geno_matrix, bool var_normalize) {
+//void genotype::generate_eigen_geno(Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &geno_matrix, bool var_normalize) {
 	for (int i = 0; i < Nsnp; i++) {
 		for (int j = 0; j < Nindv; j++) {
 			double m = msb[i][j];

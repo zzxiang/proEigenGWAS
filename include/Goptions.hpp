@@ -25,6 +25,7 @@ public:
    // Parse options runs through the heirarchy doing all the parsing
    void ParseOptions(int argc, char const *argv[]) {
       ParseCommandLine(argc, argv);
+      NotDefined();
       CheckForHelp();
       CheckForVersion();
    }
@@ -91,6 +92,11 @@ public:
       return results["txt"].as<bool>();
    }
 
+   bool IsGenericSubstractMean() {
+      return !results["miss"].as<bool>();
+//      return results["substract-mean"].as<bool>();
+   }
+
    bool IsGenericNoMailman() {
       return results["no-mailman"].as<bool>();
    }
@@ -113,6 +119,17 @@ public:
 
    int GetGenericEigenvecNumber() {
       return results["evec"].as<int>();
+   }
+
+   int GetGenericMailmanBlockSize() {
+      int k = (int) ceil(GetGenericEigenvecNumber()/10.0) * 10;
+
+      if (CheckRandHEMasterOption()) {
+         k = GetGenericIteration();
+      } else if (CheckEncMasterOption()) {
+         k = GetEncK();
+      }
+      return k;
    }
 
    int GetGenericThreads() {
@@ -177,6 +194,25 @@ public:
    }
 
 private:
+
+   void NotDefined() {
+      if (IsGenericMissing() && !IsGenericFastMode()) {
+//   	if (missing && !fast_mode) {
+		   cout << "Missing version works only with mailman i.e. fast mode\n EXITING..." << endl;
+		   exit(-1);
+	   }
+      if (IsGenericFastMode() && IsGenericMemoryEfficient()) {
+//	   if (fast_mode && memory_efficient) {
+		   cout << "Memory effecient version for mailman EM not yet implemented" << endl;
+		   cout << "Ignoring Memory effecient Flag" << endl;
+	   }
+      if (IsGenericMissing() && IsGenericVarNorm()) {
+//	   if (missing && var_normalize) {
+		   cout << "Missing version works only without variance normalization\n EXITING..." << endl;
+		   exit(-1);
+	   }
+   }
+
    void SetOptions() {
       SetGenericOptions();
       SetPropcOptions();
@@ -188,6 +224,8 @@ private:
       SetEnvMapping();
    }
 
+
+
    void SetGenericOptions() {
       genericOpts.add_options()
          ("help", "produce help message.")
@@ -195,10 +233,11 @@ private:
 
          ("debug", po::bool_switch()->default_value(false), "debug mode.")
          ("txt", po::bool_switch()->default_value(false), "text pedigree files (default false).")
-         ("mem", po::bool_switch()->default_value(false), "The flag states whether to use a memory effecient version for the EM algorithm or not. The memory efficient version is a little slow than the not efficient version (default: false)")
+         ("mem", po::bool_switch()->default_value(false), "the flag states whether to use a memory effecient version for the EM algorithm or not. The memory efficient version is a little slow than the not efficient version (default: false)")
          ("var-norm", po::bool_switch()->default_value(true), "normalization for mailman.")
          ("no-mailman", po::bool_switch()->default_value(false), "no mailman (default, false).")
          ("miss", po::bool_switch()->default_value(false), "no missing (default, false, when true the missing genotypes will be imputed.")
+ //        ("substract-mean", po::bool_switch()->default_value(true), "substract-mean for mailman (default, true).")
 
          ("bfile", po::value<string>(&generic_bGeno_file), "root of plink binary pedigree files.")
          ("out", po::value<string>()->default_value("out"), "root for output files.")

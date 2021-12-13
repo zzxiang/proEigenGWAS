@@ -1,5 +1,3 @@
-/*
-!/example/
 /examples/example_evals.txt
 /examples/example_evecs.tx
 /examples/example_eg.1.txt
@@ -8,17 +6,4 @@
 /examples/example_eg.4.txt
 /examples/example_eg.5.txt
 /examples/example_projections.txt
-!CMakeLists.txt
-!/examples
-!/examples/*.bed
-!/examples/*.bim
-!/examples/*.fam
-!examples/Arab295Line_evals.txt
-!examples/Arab295Line_evecs.txt
-!examples/Arab295Line_projections.txt
-!/.git
-!/.gitignore
-!LICENSE
-!README.md
-!/src
-!/misc
+build/*

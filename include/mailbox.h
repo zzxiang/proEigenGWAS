@@ -300,4 +300,71 @@ void multiply_y_pre(MatrixXdr &op, int Ncol_op, MatrixXdr &res, bool subtract_me
 	}
 }
 
+void setMem() {
+	int blocksize = goptions.GetGenericMailmanBlockSize();
+	int hsegsize = g.segment_size_hori;	// = log_3(n)
+	int hsize = pow(3, hsegsize);
+//	int vsegsize = g.segment_size_ver;	// = log_3(p)
+//	int vsize = pow(3, vsegsize);
+
+	sum_op = new double[blocksize];
+	partialsums = new double*[goptions.GetGenericThreads()];
+	yint_m = new double*[goptions.GetGenericThreads()];
+	yint_e = new double*[goptions.GetGenericThreads()];
+
+	for (int t = 0; t < goptions.GetGenericThreads(); t++) {
+		partialsums[t] = new double [blocksize];
+		yint_m[t] = new double [hsize * blocksize];
+		memset(yint_m[t], 0, hsize * blocksize * sizeof(double));
+		yint_e[t] = new double [hsize * blocksize];
+		memset(yint_e[t], 0, hsize * blocksize * sizeof(double));
+	}
+
+	y_e = new double**[goptions.GetGenericThreads()];
+	y_m = new double**[goptions.GetGenericThreads()];
+	for (int t = 0; t < goptions.GetGenericThreads(); t++) {
+		y_e[t] = new double*[g.Nindv];
+		for (int i = 0; i < g.Nindv; i++) {
+			y_e[t][i] = new double[blocksize];
+			memset(y_e[t][i], 0, blocksize * sizeof(double));
+		}
+		y_m[t] = new double*[hsegsize];
+		for (int i = 0; i < hsegsize; i++) {
+			y_m[t][i] = new double[blocksize];
+			memset(y_m[t][i], 0, blocksize * sizeof(double));
+		}
+	}
+}
+
+void cleanMem() {
+	int nthreads = goptions.GetGenericThreads();
+	int hsegsize = g.segment_size_hori;	// = log_3(n)
+	delete[] sum_op;
+	for (int t = 0; t < nthreads; t++) {
+		delete[] yint_e[t];
+	}
+	delete[] yint_e;
+
+	for (int t = 0; t < nthreads; t++) {
+		delete[] yint_m[t];
+		delete[] partialsums[t];
+	}
+	delete[] yint_m;
+	delete[] partialsums;
+
+	for (int t = 0; t < nthreads; t++) {
+		for (int i  = 0; i < hsegsize; i++)
+			delete[] y_m[t][i];
+		delete[] y_m[t];
+	}
+	delete[] y_m;
+
+	for (int t = 0; t < nthreads; t++) {
+		for (int i  = 0; i < g.Nindv; i++)
+			delete[] y_e[t][i]; 
+		delete[] y_e[t];
+	}
+	delete[] y_e;
+}
+
 #endif

@@ -1,3 +1,5 @@
+.vscode/
+src/.DS_Store
 /examples/example_evals.txt
 /examples/example_evecs.tx
 /examples/example_eg.1.txt

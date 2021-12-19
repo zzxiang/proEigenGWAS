@@ -21,25 +21,64 @@ namespace mailman {
  	* k : batching factor: how many vectors to operate on 
  	* p : matrix A represented in mailman form
  	* x : matrix X
- 	* yint : intermediate computation
+ 	* yint : intermediate computation  Zhixiang: yint means y-intermediate
  	* c : intermediate computation
  	* y : result
  	*/
 //	void fastmultiply_normal(int m, int n, int k, std::vector<int> &p, Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> &x, double *yint, double *c, double **y){
 	void fastmultiply_normal(int m, int n, int k, std::vector<int> &p, MatrixXdr &x, double *yint, double *c, double **y) {
-
+		// Zhixiang: Compute yint <- P * x
 		for (int i = 0 ; i < n; i++) {
-			int l = p[i];
+			// Zhixiang: In the i-th column of matrix P, the element at the p[i]-th row is 1, and other elements are 0.
+			int l = p[i];  // 0 <= l < m  -- Zhixiang
+			// Zhixiang: In the case that x is just a vector (k == 0),
+			// we have that yint is also a vector, and yint[l] += x(i).
 			for (int j = 0; j < k; j++)
 				yint[l*k + j] += x(i, j);
 		}
 
-		int d = pow(3, m);
+		int d = pow(3, m);  // Zhixiang: In the case of 2 genotypes, d = pow(2, m)
 		for (int j = 0; j < m; j++) {
-			d = d/3;
+			d = d/3;  // Zhixiang: In then the case of 2 genotypes, d = d / 2
 			for (int l = 0; l < k; l++)
 				c [l] = 0;
-			for (int i = 0; i < d; i++) {
+
+			/* Zhixiang:
+			 * 
+			 * To make interpretation easier, let k = 1, i.e., there's only one vector in x.
+			 * The following two for-loops (loop [1] and loop [2]) compute the j-th element of A * x
+			 * and store the result into y[j].
+			 * 
+			 *   y[j] = sum(1 * zv1) + sum(2 * zv2)
+			 * 
+			 * where zv1 is a vector of length d consisting of all the z1's,
+			 * and z2 is a vector of length d consisting of all the z2's.
+			 * Strictly speaking according to the mailman paper, there should also be a zv0 and
+			 * 
+			 *   y[j] = sum(0 * zv0) + sum(1 * zv1) + sum(2 * zv2)
+			 * 
+			 * zv0, zv1 and zv2 correspond to yint[0 .. d-1], yint[d .. 2*d-1] and yint[2*d .. 3*d - 1], respectively.
+			 * (Notice that yint is equal to P * x before the first time loop [1] is executed.)
+			 * Since sum(0 * zv0) is definitely 0, we don't need to compute it.
+			 * 
+			 * After loop [1] completes, we have
+			 * 
+			 *   yint = zv0 + zv1 + zv2
+			 * 
+			 * and the length of yint shrinks to d.
+			 * 
+			 * In the case of 2 genotypes, loop [1] can be simplified to
+			 
+			for (int i = 0; i < d; i++) {  // Zhixiang: loop [1]
+				for (int l = 0; l < k; l++) {
+					double z1 = yint[l + (i + d) * k];
+					yint[l + (i + d) * k] = 0;
+					yint[l + i * k] += z1;
+					c[l] += z1;
+				}
+			}
+			 */
+			for (int i = 0; i < d; i++) {  // Zhixiang: loop [1]
 				for (int l = 0; l < k; l++) {
 					double z1 = yint[l + (i + d) * k];
 					double z2 = yint[l + (i + 2 * d) * k];
@@ -49,7 +88,7 @@ namespace mailman {
 					c[l] += (z1 + 2 * z2);
 				}
 			}
-			for (int l = 0; l < k; l++)
+			for (int l = 0; l < k; l++)  // Zhixiang: loop [2]
 				y[j][l] = c[l];
 		}
 		for (int l = 0; l < k; l++)
